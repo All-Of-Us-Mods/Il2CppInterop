@@ -318,7 +318,7 @@ public static class ILGeneratorEx
                 }
                 else
                 {
-                    Debug.Assert(enclosingType.NewType.DeclaringModule is not null);
+                    Debug.Assert(enclosingType.NewType.Module is not null);
                     var classPointerTypeRef = new GenericInstanceTypeSignature(imports.Il2CppClassPointerStore.ToTypeDefOrRef(), imports.Il2CppClassPointerStore.IsValueType(), convertedReturnType);
                     var classPointerFieldRef =
                         ReferenceCreator.CreateFieldReference("NativeClassPtr", imports.Module.IntPtr(),
