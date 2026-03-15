@@ -99,7 +99,6 @@ public class MethodRewriteContext
     public ITypeDefOrRef? GenericInstantiationsStoreSelfSubstRef { get; private set; }
     public ITypeDefOrRef? GenericInstantiationsStoreSelfSubstMethodRef { get; private set; }
     public MemberReference NonGenericMethodInfoPointerField { get; private set; } = null!; // Initialized in CtorPhase2
-    public MemberReference NonGenericUnityFunctionField { get; private set; } = null!; // Initialized in CtorPhase2
 
     public bool HasExtensionAttribute { get; }
 
@@ -120,10 +119,11 @@ public class MethodRewriteContext
         if (UnityFunctionDetector.DetectUnityFunction(OriginalMethod))
         {
             var nonGenericUnityFunctionField = new FieldDefinition(
-                "UnityFunction_" + UnmangledNameWithSignature,
-                FieldAttributes.Private | FieldAttributes.Static,
-                DeclaringType.AssemblyContext.Imports.Module.Bool());
-                DeclaringType.NewType.Fields.Add(nonGenericUnityFunctionField);
+                    "UnityFunction_" + UnmangledNameWithSignature,
+                    FieldAttributes.Private | FieldAttributes.Static,
+                    DeclaringType.AssemblyContext.Imports.Module.Bool());
+
+            DeclaringType.NewType.Fields.Add(nonGenericUnityFunctionField);
         }
 
         NonGenericMethodInfoPointerField = new MemberReference(DeclaringType.SelfSubstitutedRef, nonGenericMethodInfoPointerField.Name,
