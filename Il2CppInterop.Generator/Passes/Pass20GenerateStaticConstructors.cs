@@ -156,9 +156,19 @@ public static class Pass20GenerateStaticConstructors
             }
 
             ctorBuilder.Add(OpCodes.Stsfld, method.NonGenericMethodInfoPointerField);
+
+            var isUnityFunction = DetectUnityFunction(method.OriginalMethod);
+            ctorBuilder.Add(isUnityFunction ? OpCodes.Ldc_I4_1 : OpCodes.Ldc_I4_0);
+            ctorBuilder.Add(OpCodes.Stsfld, method.NonGenericUnityFunctionField);
         }
 
         ctorBuilder.Add(OpCodes.Ret);
+    }
+
+    private static bool DetectUnityFunction(MethodDefinition method)
+    {
+        _ = method;
+        return false;
     }
 
     private static void EmitLoadTypeNameString(this ILProcessor ctorBuilder, RuntimeAssemblyReferences imports,

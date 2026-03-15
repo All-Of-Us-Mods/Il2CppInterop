@@ -99,6 +99,7 @@ public class MethodRewriteContext
     public ITypeDefOrRef? GenericInstantiationsStoreSelfSubstRef { get; private set; }
     public ITypeDefOrRef? GenericInstantiationsStoreSelfSubstMethodRef { get; private set; }
     public MemberReference NonGenericMethodInfoPointerField { get; private set; } = null!; // Initialized in CtorPhase2
+    public MemberReference NonGenericUnityFunctionField { get; private set; } = null!; // Initialized in CtorPhase2
 
     public bool HasExtensionAttribute { get; }
 
@@ -116,8 +117,16 @@ public class MethodRewriteContext
             DeclaringType.AssemblyContext.Imports.Module.IntPtr());
         DeclaringType.NewType.Fields.Add(nonGenericMethodInfoPointerField);
 
+        var nonGenericUnityFunctionField = new FieldDefinition(
+            "UnityFunction_" + UnmangledNameWithSignature,
+            FieldAttributes.Private | FieldAttributes.Static | FieldAttributes.InitOnly,
+            DeclaringType.AssemblyContext.Imports.Module.Bool());
+        DeclaringType.NewType.Fields.Add(nonGenericUnityFunctionField);
+
         NonGenericMethodInfoPointerField = new MemberReference(DeclaringType.SelfSubstitutedRef, nonGenericMethodInfoPointerField.Name,
             new FieldSignature(nonGenericMethodInfoPointerField.Signature!.FieldType));
+        NonGenericUnityFunctionField = new MemberReference(DeclaringType.SelfSubstitutedRef, nonGenericUnityFunctionField.Name,
+            new FieldSignature(nonGenericUnityFunctionField.Signature!.FieldType));
 
         if (OriginalMethod.HasGenericParameters())
         {
@@ -161,6 +170,11 @@ public class MethodRewriteContext
             var pointerField = new FieldDefinition("Pointer", FieldAttributes.Assembly | FieldAttributes.Static,
                 DeclaringType.AssemblyContext.Imports.Module.IntPtr());
             genericMethodInfoStoreType.Fields.Add(pointerField);
+
+            var unityFunctionField = new FieldDefinition("UnityFunction",
+                FieldAttributes.Assembly | FieldAttributes.Static | FieldAttributes.InitOnly,
+                DeclaringType.AssemblyContext.Imports.Module.Bool());
+            genericMethodInfoStoreType.Fields.Add(unityFunctionField);
 
             GenericInstantiationsStoreSelfSubstRef = DeclaringType.NewType.Module!.DefaultImporter.ImportType(selfSubstRef.ToTypeDefOrRef());
             GenericInstantiationsStoreSelfSubstMethodRef =
