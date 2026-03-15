@@ -171,11 +171,6 @@ public class MethodRewriteContext
                 DeclaringType.AssemblyContext.Imports.Module.IntPtr());
             genericMethodInfoStoreType.Fields.Add(pointerField);
 
-            var unityFunctionField = new FieldDefinition("UnityFunction",
-                FieldAttributes.Assembly | FieldAttributes.Static | FieldAttributes.InitOnly,
-                DeclaringType.AssemblyContext.Imports.Module.Bool());
-            genericMethodInfoStoreType.Fields.Add(unityFunctionField);
-
             GenericInstantiationsStoreSelfSubstRef = DeclaringType.NewType.Module!.DefaultImporter.ImportType(selfSubstRef.ToTypeDefOrRef());
             GenericInstantiationsStoreSelfSubstMethodRef =
                 DeclaringType.NewType.Module.DefaultImporter.ImportType(selfSubstMethodRef.ToTypeDefOrRef());

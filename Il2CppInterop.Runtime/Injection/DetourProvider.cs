@@ -1,5 +1,4 @@
 using System;
-using Il2CppInterop.Common;
 using Il2CppInterop.Runtime.Startup;
 
 namespace Il2CppInterop.Runtime.Injection;
@@ -28,10 +27,7 @@ internal static class Detour
 {
     public static IDetour Apply<T>(nint original, T target, out T trampoline) where T : Delegate
     {
-        var unityFunction = Il2CppInteropUtils.TryGetUnityFunctionFlagForGeneratedMethod(target.Method, out var isUnityFunction) &&
-                            isUnityFunction;
-
-        var detour = Il2CppInteropRuntime.Instance.DetourProvider.Create(original, target, unityFunction);
+        var detour = Il2CppInteropRuntime.Instance.DetourProvider.Create(original, target, false);
         trampoline = detour.GenerateTrampoline<T>();
         detour.Apply();
         return detour;

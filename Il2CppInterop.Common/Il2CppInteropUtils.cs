@@ -7,10 +7,6 @@ namespace Il2CppInterop.Common;
 
 public static class Il2CppInteropUtils
 {
-    private const string MethodInfoPointerPrefix = "NativeMethodInfoPtr_";
-    private const string UnityFunctionFieldPrefix = "UnityFunction_";
-    private const string UnityFunctionFieldName = "UnityFunction";
-
     private static FieldInfo? GetFieldInfoFromMethod(MethodBase method, string prefix)
     {
         var body = method.GetMethodBody();
@@ -34,16 +30,11 @@ public static class Il2CppInteropUtils
 
     public static FieldInfo GetIl2CppMethodInfoPointerFieldForGeneratedMethod(MethodBase method)
     {
-        return GetFieldInfoFromMethod(method, MethodInfoPointerPrefix);
+        return GetFieldInfoFromMethod(method, "NativeMethodInfoPtr_");
     }
 
     public static FieldInfo GetIl2CppFieldInfoPointerFieldForGeneratedFieldAccessor(MethodBase method)
     {
         return GetFieldInfoFromMethod(method, "NativeFieldInfoPtr_");
-    }
-
-    public static FieldInfo GetIl2CppUnityFunctionForGeneratedFieldAccessor(MethodBase method)
-    {
-        return GetFieldInfoFromMethod(method, "UnityFunction_");
     }
 }

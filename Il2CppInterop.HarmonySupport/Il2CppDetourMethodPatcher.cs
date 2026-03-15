@@ -1,5 +1,6 @@
 ﻿using System.Reflection;
 using System.Reflection.Emit;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using HarmonyLib;
 using HarmonyLib.Public.Patching;
@@ -68,6 +69,8 @@ internal unsafe class Il2CppDetourMethodPatcher : MethodPatcher
 
     private INativeMethodInfoStruct originalNativeMethodInfo;
 
+    private bool _isUnityFunction;
+
     /// <summary>
     ///     Constructs a new instance of <see cref="MonoMod.RuntimeDetour.NativeDetour" /> method patcher.
     /// </summary>
@@ -106,6 +109,18 @@ internal unsafe class Il2CppDetourMethodPatcher : MethodPatcher
             Buffer.MemoryCopy(originalNativeMethodInfo.Pointer.ToPointer(),
                 modifiedNativeMethodInfo.Pointer.ToPointer(), UnityVersionHandler.MethodSize(),
                 UnityVersionHandler.MethodSize());
+
+            var suffix = methodField.Name.Substring(20); // NativeMethodInfoPtr_ Length = 20
+            var unityField = methodField.DeclaringType?.GetField(
+                "UnityFunction_" + suffix,
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
+
+            if (unityField != null)
+            {
+                RuntimeHelpers.RunClassConstructor(methodField.DeclaringType!.TypeHandle);
+                _isUnityFunction = (bool)unityField.GetValue(null)!;
+            }
+
             IsValid = true;
         }
         catch (Exception e)
@@ -147,11 +162,8 @@ internal unsafe class Il2CppDetourMethodPatcher : MethodPatcher
         var unmanagedDelegate = unmanagedTrampolineMethod.CreateDelegate(unmanagedDelegateType);
         DelegateCache.Add(unmanagedDelegate);
 
-        var unityFunction = Il2CppInteropUtils.TryGetUnityFunctionFlagForGeneratedMethod(Original, out var isUnityFunction) &&
-                            isUnityFunction;
-
         nativeDetour =
-            Il2CppInteropRuntime.Instance.DetourProvider.Create(originalNativeMethodInfo.MethodPointer, unmanagedDelegate, unityFunction);
+            Il2CppInteropRuntime.Instance.DetourProvider.Create(originalNativeMethodInfo.MethodPointer, unmanagedDelegate, _isUnityFunction);
         nativeDetour.Apply();
         modifiedNativeMethodInfo.MethodPointer = nativeDetour.OriginalTrampoline;
 
