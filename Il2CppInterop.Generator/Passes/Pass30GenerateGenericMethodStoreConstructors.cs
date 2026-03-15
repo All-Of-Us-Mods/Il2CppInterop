@@ -82,7 +82,7 @@ public static class Pass30GenerateGenericMethodStoreConstructors
                             ReferenceCreator.CreateFieldReference("Pointer", assemblyContext.Imports.Module.IntPtr(),
                                 methodContext.GenericInstantiationsStoreSelfSubstRef));
 
-                        var isUnityFunction = DetectUnityFunction(oldMethod);
+                        var isUnityFunction = UnityFunctionDetector.DetectUnityFunction(oldMethod);
                         ctorBuilder.Add(isUnityFunction ? OpCodes.Ldc_I4_1 : OpCodes.Ldc_I4_0);
                         ctorBuilder.Add(OpCodes.Stsfld,
                             ReferenceCreator.CreateFieldReference("UnityFunction", assemblyContext.Imports.Module.Bool(),
@@ -93,11 +93,5 @@ public static class Pass30GenerateGenericMethodStoreConstructors
                 }
             }
         }
-    }
-
-    private static bool DetectUnityFunction(MethodDefinition method)
-    {
-        _ = method;
-        return false;
     }
 }
