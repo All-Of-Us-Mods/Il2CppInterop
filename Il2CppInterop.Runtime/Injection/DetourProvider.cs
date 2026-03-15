@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Il2CppInterop.Runtime.Startup;
 
 namespace Il2CppInterop.Runtime.Injection;
@@ -15,12 +15,7 @@ public interface IDetour : IDisposable
 
 public interface IDetourProvider
 {
-    IDetour Create<TDelegate>(nint original, TDelegate target) where TDelegate : Delegate;
-
-    IDetour Create<TDelegate>(nint original, TDelegate target, bool unityFunction) where TDelegate : Delegate
-    {
-        return Create(original, target);
-    }
+    IDetour Create<TDelegate>(nint original, TDelegate target, bool unityFunction) where TDelegate : Delegate;
 }
 
 internal static class Detour

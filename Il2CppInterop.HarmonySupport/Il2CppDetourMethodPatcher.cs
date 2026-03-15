@@ -111,15 +111,9 @@ internal unsafe class Il2CppDetourMethodPatcher : MethodPatcher
                 UnityVersionHandler.MethodSize());
 
             var suffix = methodField.Name.Substring(20); // NativeMethodInfoPtr_ Length = 20
-            var unityField = methodField.DeclaringType?.GetField(
+            _isUnityFunction = methodField.DeclaringType?.GetField(
                 "UnityFunction_" + suffix,
-                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
-
-            if (unityField != null)
-            {
-                RuntimeHelpers.RunClassConstructor(methodField.DeclaringType!.TypeHandle);
-                _isUnityFunction = (bool)unityField.GetValue(null)!;
-            }
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static) != null;
 
             IsValid = true;
         }
