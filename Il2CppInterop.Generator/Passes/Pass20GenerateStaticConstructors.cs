@@ -156,10 +156,6 @@ public static class Pass20GenerateStaticConstructors
             }
 
             ctorBuilder.Add(OpCodes.Stsfld, method.NonGenericMethodInfoPointerField);
-
-            var isUnityFunction = UnityFunctionDetector.DetectUnityFunction(method.OriginalMethod);
-            ctorBuilder.Add(isUnityFunction ? OpCodes.Ldc_I4_1 : OpCodes.Ldc_I4_0);
-            ctorBuilder.Add(OpCodes.Stsfld, method.NonGenericUnityFunctionField);
         }
 
         ctorBuilder.Add(OpCodes.Ret);
