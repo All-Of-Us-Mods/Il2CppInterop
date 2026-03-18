@@ -15,6 +15,10 @@ public static class BridgeInterop
     private static nint s_setReturnBuffer;
     private static nint s_returnBufferBridge;
 
+    public static string LibraryPath => s_libraryFname;
+    public static nint ReturnBufferBridgeFn => s_returnBufferBridge;
+    public static nint SetReturnBufferFn => s_setReturnBuffer;
+
     public static void Initialize()
     {
         if (s_libraryHandle != nint.Zero) return;
@@ -49,10 +53,6 @@ public static class BridgeInterop
             throw;
         }
     }
-
-    public static string GetLibraryPath() => s_libraryFname;
-
-    public static nint GetPointerToReturnBufferBridge() => s_returnBufferBridge;
 
     public static unsafe nint GetReturnBuffer()
     {
