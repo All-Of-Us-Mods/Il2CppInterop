@@ -138,7 +138,7 @@ internal unsafe class Il2CppDetourMethodPatcher : MethodPatcher
 
         // Generate the MethodInfo instances
         var managedHookedMethod = copiedDmd.Generate();
-        var unmanagedTrampolineMethod = GenerateNativeToManagedTrampoline(managedHookedMethod).Generate();
+        var unmanagedTrampolineMethod = GenerateNativeToManagedTrampoline(managedHookedMethod, out var specialReturnBuffer).Generate();
 
         // Apply a detour from the unmanaged implementation to the patched harmony method
         var unmanagedDelegateType = DelegateTypeFactory.instance.CreateDelegateType(unmanagedTrampolineMethod,
@@ -147,8 +147,11 @@ internal unsafe class Il2CppDetourMethodPatcher : MethodPatcher
         var unmanagedDelegate = unmanagedTrampolineMethod.CreateDelegate(unmanagedDelegateType);
         DelegateCache.Add(unmanagedDelegate);
 
-        nativeDetour =
-            Il2CppInteropRuntime.Instance.DetourProvider.Create(originalNativeMethodInfo.MethodPointer, unmanagedDelegate);
+        nativeDetour = Il2CppInteropRuntime.Instance.DetourProvider.Create(
+            originalNativeMethodInfo.MethodPointer,
+            unmanagedDelegate,
+            specialReturnBuffer
+            );
         nativeDetour.Apply();
         modifiedNativeMethodInfo.MethodPointer = nativeDetour.OriginalTrampoline;
 
@@ -214,7 +217,7 @@ internal unsafe class Il2CppDetourMethodPatcher : MethodPatcher
         return true;
     }
 
-    private DynamicMethodDefinition GenerateNativeToManagedTrampoline(MethodInfo targetManagedMethodInfo)
+    private DynamicMethodDefinition GenerateNativeToManagedTrampoline(MethodInfo targetManagedMethodInfo, out bool specialReturnBuffer)
     {
         // managedParams are the interop types used on the managed side
         // unmanagedParams are IntPtr references that are used by IL2CPP compiled assembly
@@ -234,6 +237,7 @@ internal unsafe class Il2CppDetourMethodPatcher : MethodPatcher
 
         var hasReturnBuffer = isReturnValueType && IsReturnBufferNeeded(returnSize);
         var firstParamReturnBuffer = false;
+        specialReturnBuffer = false;
 
         // TODO: Check if this applies to values other than structs
         if (hasReturnBuffer)
@@ -254,8 +258,13 @@ internal unsafe class Il2CppDetourMethodPatcher : MethodPatcher
                 paramStartIndex++;
             }
 
-            // by arm64 spec, X8 contains the pointer to the return buffer,
-            // so we will use a native shim to access X8 register
+            if (PlatformDetection.Architecture is ArchitectureKind.Arm64)
+            {
+                // by arm64 spec, X8 contains the pointer to the return buffer,
+                // so we will use a native shim to access X8 register
+                specialReturnBuffer = true;
+                BridgeInterop.Initialize();
+            }
         }
 
         if (!Original.IsStatic)

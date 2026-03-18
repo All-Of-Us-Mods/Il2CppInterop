@@ -1,4 +1,5 @@
 ﻿using System.Reflection;
+using MonoMod;
 using MonoMod.Utils;
 
 namespace Il2CppInterop.HarmonySupport;
@@ -8,30 +9,48 @@ public static class BridgeInterop
     public static MethodInfo GetReturnBufferMethodInfo { get; } =
         typeof(BridgeInterop).GetMethod(nameof(GetReturnBuffer), BindingFlags.Public | BindingFlags.Static)!;
 
+    private static string s_libraryFname;
+    private static nint s_libraryHandle;
     private static nint s_getReturnBuffer;
     private static nint s_setReturnBuffer;
     private static nint s_returnBufferBridge;
 
-    public static void Initialize(string libraryPath)
+    public static void Initialize()
     {
-        // TODO: call initialize somewhere
-        if (s_getReturnBuffer != nint.Zero) return;
+        if (s_libraryHandle != nint.Zero) return;
 
-        var handle = DynDll.OpenLibrary(libraryPath);
+        using (var embedded = Assembly.GetExecutingAssembly().GetManifestResourceStream("bridge_helper_arm64_linux.so"))
+        {
+            // copy to temp file
+            Helpers.Assert(embedded is not null);
+            Switches.TryGetSwitchValue(Switches.HelperDropPath,  out var dropPath);
+
+            var dropDir = dropPath is string dp ? Path.GetFullPath(dp) : Path.GetTempPath();
+            _ = Directory.CreateDirectory(dropDir);
+
+            var tempFile = Path.Combine(dropDir, "bridge_helper_arm64_linux.so");
+            using var output = File.Create(tempFile);
+            embedded.CopyTo(output);
+            s_libraryFname = tempFile;
+        }
+
+        s_libraryHandle = DynDll.OpenLibrary(s_libraryFname);
         try
         {
-            s_getReturnBuffer = handle.GetExport(nameof(GetReturnBuffer));
-            s_setReturnBuffer =  handle.GetExport(nameof(SetReturnBuffer));
-            s_returnBufferBridge = handle.GetExport("ReturnBufferBridge");
+            s_getReturnBuffer = s_libraryHandle.GetExport(nameof(GetReturnBuffer));
+            s_setReturnBuffer =  s_libraryHandle.GetExport(nameof(SetReturnBuffer));
+            s_returnBufferBridge = s_libraryHandle.GetExport("ReturnBufferBridge");
 
             Helpers.Assert(s_getReturnBuffer != nint.Zero);
         }
         catch
         {
-            DynDll.CloseLibrary(handle);
+            DynDll.CloseLibrary(s_libraryHandle);
             throw;
         }
     }
+
+    public static string GetLibraryPath() => s_libraryFname;
 
     public static nint GetPointerToReturnBufferBridge() => s_returnBufferBridge;
 
