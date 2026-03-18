@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project>
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <!-- Properties for native helper library building -->
+
+  <!-- Define native library paths and output directories -->
+  <PropertyGroup>
+    <NativeHelpersDir>$(MSBuildThisFileDirectory)NativeHelpers</NativeHelpersDir>
+    <Arm64NativeHelpersDir>$(NativeHelpersDir)\arm64</Arm64NativeHelpersDir>
+    <NativeBuildOutputDir>$(IntermediateOutputPath)native</NativeBuildOutputDir>
+  </PropertyGroup>
+
+  <!-- Set up native library names and output paths -->
+  <PropertyGroup>
+    <!-- Linux ARM64 configuration -->
+    <Arm64LinuxLibraryName>bridge_helper.so</Arm64LinuxLibraryName>
+    <Arm64LinuxBuildDir>$(NativeBuildOutputDir)\arm64\linux</Arm64LinuxBuildDir>
+    <Arm64LinuxLibraryPath>$(Arm64LinuxBuildDir)\$(Arm64LinuxLibraryName)</Arm64LinuxLibraryPath>
+
+  </PropertyGroup>
+
+  <!-- Compiler configuration for ARM64 using Zig -->
+  <PropertyGroup>
+    <!-- Zig provides built-in cross-compilation support without requiring separate toolchains -->
+    <Arm64Compiler>zig</Arm64Compiler>
+
+    <!-- Linux ARM64 with musl libc -->
+    <Arm64LinuxFlags>c++ -target aarch64-linux-musl -shared -fPIC -O2</Arm64LinuxFlags>
+  </PropertyGroup>
+
+</Project>
+

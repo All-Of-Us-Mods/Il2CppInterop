@@ -69,7 +69,7 @@ internal unsafe class Il2CppDetourMethodPatcher : MethodPatcher
     private INativeMethodInfoStruct originalNativeMethodInfo;
 
     /// <summary>
-    ///     Constructs a new instance of <see cref="MonoMod.RuntimeDetour.NativeDetour" /> method patcher.
+    /// Constructs a new instance of the Il2CppDetourMethodPatcher class, which uses a native detour to patch the method.
     /// </summary>
     /// <param name="original"></param>
     public Il2CppDetourMethodPatcher(MethodBase original) : base(original) => Init();
@@ -233,13 +233,29 @@ internal unsafe class Il2CppDetourMethodPatcher : MethodPatcher
         }
 
         var hasReturnBuffer = isReturnValueType && IsReturnBufferNeeded(returnSize);
-        if (hasReturnBuffer)
-        // C compilers seem to return large structs by allocating a return buffer on caller's side and passing it as the first parameter
-        // TODO: Handle ARM
+        var firstParamReturnBuffer = false;
+
         // TODO: Check if this applies to values other than structs
+        if (hasReturnBuffer)
         {
             unmanagedReturnType = typeof(IntPtr);
-            paramStartIndex++;
+            if (PlatformDetection.Architecture is ArchitectureKind.x86 or ArchitectureKind.x86_64)
+            {
+                // x86 usually passes the return buffer pointer through the first parameter
+                // which shifts over the over parameters.
+                firstParamReturnBuffer = true;
+                paramStartIndex++;
+            }
+
+            if (PlatformDetection.Architecture is ArchitectureKind.Arm and not ArchitectureKind.Arm64)
+            {
+                // Arm32 also follows the x86 convention, passing the pointer in R0
+                firstParamReturnBuffer = true;
+                paramStartIndex++;
+            }
+
+            // by arm64 spec, X8 contains the pointer to the return buffer,
+            // so we will use a native shim to access X8 register
         }
 
         if (!Original.IsStatic)
@@ -252,8 +268,9 @@ internal unsafe class Il2CppDetourMethodPatcher : MethodPatcher
             new Type[managedParams.Length + paramStartIndex +
                      1]; // +1 for methodInfo at the end
 
-        if (hasReturnBuffer)
+        if (hasReturnBuffer && firstParamReturnBuffer)
         // With GCC the return buffer seems to be the first param, same is likely with other compilers too
+        // note: not on arm64, arm64 passes buffer pointer in X8
         {
             unmanagedParams[0] = typeof(IntPtr);
         }
@@ -325,7 +342,16 @@ internal unsafe class Il2CppDetourMethodPatcher : MethodPatcher
         {
             if (hasReturnBuffer)
             {
-                il.Emit(OpCodes.Ldarg_0);
+                if (firstParamReturnBuffer)
+                {
+                    // x86 and arm32 use first parameter as return buffer
+                    il.Emit(OpCodes.Ldarg_0);
+                }
+                else
+                {
+                    il.Emit(OpCodes.Call, BridgeInterop.GetReturnBufferMethodInfo);
+                }
+
                 il.Emit(OpCodes.Ldloc, managedReturnVariable);
                 il.Emit(OpCodes.Call, ObjectBaseToPtrNotNullMethodInfo);
                 EmitUnbox(il);
