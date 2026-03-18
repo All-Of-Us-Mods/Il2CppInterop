@@ -116,6 +116,16 @@ public class MethodRewriteContext
             DeclaringType.AssemblyContext.Imports.Module.IntPtr());
         DeclaringType.NewType.Fields.Add(nonGenericMethodInfoPointerField);
 
+        if (UnityFunctionDetector.DetectUnityFunction(OriginalMethod))
+        {
+            var nonGenericUnityFunctionField = new FieldDefinition(
+                    "UnityFunction_" + UnmangledNameWithSignature,
+                    FieldAttributes.Private | FieldAttributes.Static,
+                    DeclaringType.AssemblyContext.Imports.Module.Bool());
+
+            DeclaringType.NewType.Fields.Add(nonGenericUnityFunctionField);
+        }
+
         NonGenericMethodInfoPointerField = new MemberReference(DeclaringType.SelfSubstitutedRef, nonGenericMethodInfoPointerField.Name,
             new FieldSignature(nonGenericMethodInfoPointerField.Signature!.FieldType));
 

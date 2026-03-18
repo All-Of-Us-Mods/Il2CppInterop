@@ -1,5 +1,6 @@
 ﻿using System.Reflection;
 using System.Reflection.Emit;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using HarmonyLib;
 using HarmonyLib.Public.Patching;
@@ -68,6 +69,8 @@ internal unsafe class Il2CppDetourMethodPatcher : MethodPatcher
 
     private INativeMethodInfoStruct originalNativeMethodInfo;
 
+    private bool _isUnityFunction;
+
     /// <summary>
     ///     Constructs a new instance of <see cref="MonoMod.RuntimeDetour.NativeDetour" /> method patcher.
     /// </summary>
@@ -106,6 +109,12 @@ internal unsafe class Il2CppDetourMethodPatcher : MethodPatcher
             Buffer.MemoryCopy(originalNativeMethodInfo.Pointer.ToPointer(),
                 modifiedNativeMethodInfo.Pointer.ToPointer(), UnityVersionHandler.MethodSize(),
                 UnityVersionHandler.MethodSize());
+
+            var suffix = methodField.Name.Substring(20); // NativeMethodInfoPtr_ Length = 20
+            _isUnityFunction = methodField.DeclaringType?.GetField(
+                "UnityFunction_" + suffix,
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static) != null;
+
             IsValid = true;
         }
         catch (Exception e)
@@ -148,7 +157,7 @@ internal unsafe class Il2CppDetourMethodPatcher : MethodPatcher
         DelegateCache.Add(unmanagedDelegate);
 
         nativeDetour =
-            Il2CppInteropRuntime.Instance.DetourProvider.Create(originalNativeMethodInfo.MethodPointer, unmanagedDelegate);
+            Il2CppInteropRuntime.Instance.DetourProvider.Create(originalNativeMethodInfo.MethodPointer, unmanagedDelegate, _isUnityFunction);
         nativeDetour.Apply();
         modifiedNativeMethodInfo.MethodPointer = nativeDetour.OriginalTrampoline;
 
