@@ -292,6 +292,24 @@ internal unsafe class Il2CppDetourMethodPatcher : MethodPatcher
         var il = dmd.GetILGenerator();
         il.BeginExceptionBlock();
 
+        // Save the return buffer as soon as possible
+        // Otherwise, X8 register may be overwritten.
+        LocalBuilder returnBufferLoc = null;
+        if (hasReturnBuffer)
+        {
+            returnBufferLoc = il.DeclareLocal(typeof(IntPtr));
+            if (firstParamReturnBuffer)
+            {
+                il.Emit(OpCodes.Ldarg_0);
+            }
+            else
+            {
+                // This captures the TLS value we saved in the native bridge
+                il.Emit(OpCodes.Call, BridgeInterop.GetReturnBufferMethodInfo);
+            }
+            il.Emit(OpCodes.Stloc, returnBufferLoc);
+        }
+
         // Declare a list of variables to dereference back to the original pointers.
         // This is required due to the needed interop type conversions, so we can't directly pass some addresses as byref types
         var indirectVariables = new LocalBuilder[managedParams.Length];
@@ -342,15 +360,7 @@ internal unsafe class Il2CppDetourMethodPatcher : MethodPatcher
         {
             if (hasReturnBuffer)
             {
-                if (firstParamReturnBuffer)
-                {
-                    // x86 and arm32 use first parameter as return buffer
-                    il.Emit(OpCodes.Ldarg_0);
-                }
-                else
-                {
-                    il.Emit(OpCodes.Call, BridgeInterop.GetReturnBufferMethodInfo);
-                }
+                // we moved storing return buffer to the prologue
 
                 il.Emit(OpCodes.Ldloc, managedReturnVariable);
                 il.Emit(OpCodes.Call, ObjectBaseToPtrNotNullMethodInfo);
@@ -359,7 +369,7 @@ internal unsafe class Il2CppDetourMethodPatcher : MethodPatcher
                 il.Emit(OpCodes.Cpblk);
 
                 // Return the same pointer to the return buffer
-                il.Emit(OpCodes.Ldarg_0);
+                il.Emit(OpCodes.Ldloc,  returnBufferLoc);
             }
             else
             {
