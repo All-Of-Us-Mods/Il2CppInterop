@@ -25,7 +25,7 @@ jobs:
           if [ "${GITHUB_REF#refs/tags/v}" != "$GITHUB_REF" ]; then
             echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
           else
-            echo "build_tag=ci.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+            echo "build_tag=ci.star.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Build
