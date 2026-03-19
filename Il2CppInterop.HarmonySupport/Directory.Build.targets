@@ -14,20 +14,20 @@
 
     <!-- Build tls_helper for ARM64 Linux using Zig -->
     <!-- Compile C++ source -->
-    <Exec Command="$(Arm64Compiler) $(Arm64LinuxFlags) -c &quot;$(Arm64NativeHelpersDir)\tls_helper.cpp&quot; -o &quot;$(Arm64LinuxBuildDir)\tls_helper.o&quot;"
-          Condition="Exists('$(Arm64NativeHelpersDir)\tls_helper.cpp')"
+    <Exec Command="$(Arm64Compiler) $(Arm64LinuxFlags) -c &quot;$(Arm64NativeHelpersDir)/tls_helper.cpp&quot; -o &quot;$(Arm64LinuxBuildDir)/tls_helper.o&quot;"
+          Condition="Exists('$(Arm64NativeHelpersDir)/tls_helper.cpp')"
           ContinueOnError="true"
           EchoOff="false" />
 
     <!-- Compile assembly source -->
-    <Exec Command="$(Arm64Compiler) $(Arm64LinuxFlags) -c &quot;$(Arm64NativeHelpersDir)\bridge.S&quot; -o &quot;$(Arm64LinuxBuildDir)\bridge.o&quot;"
-          Condition="Exists('$(Arm64NativeHelpersDir)\bridge.S')"
+    <Exec Command="$(Arm64Compiler) $(Arm64LinuxFlags) -c &quot;$(Arm64NativeHelpersDir)/bridge.S&quot; -o &quot;$(Arm64LinuxBuildDir)/bridge.o&quot;"
+          Condition="Exists('$(Arm64NativeHelpersDir)/bridge.S')"
           ContinueOnError="true"
           EchoOff="false" />
 
     <!-- Link object files into shared library -->
-    <Exec Command="$(Arm64Compiler) $(Arm64LinuxFlags) &quot;$(Arm64LinuxBuildDir)\tls_helper.o&quot; &quot;$(Arm64LinuxBuildDir)\bridge.o&quot; -o &quot;$(Arm64LinuxLibraryPath)&quot;"
-          Condition="Exists('$(Arm64LinuxBuildDir)\tls_helper.o') and Exists('$(Arm64LinuxBuildDir)\bridge.o')"
+    <Exec Command="$(Arm64Compiler) $(Arm64LinuxFlags) &quot;$(Arm64LinuxBuildDir)/tls_helper.o&quot; &quot;$(Arm64LinuxBuildDir)/bridge.o&quot; -o &quot;$(Arm64LinuxLibraryPath)&quot;"
+          Condition="Exists('$(Arm64LinuxBuildDir)/tls_helper.o') and Exists('$(Arm64LinuxBuildDir)/bridge.o')"
           ContinueOnError="true"
           EchoOff="false" />
 

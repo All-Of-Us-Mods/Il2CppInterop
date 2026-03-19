@@ -7,7 +7,7 @@
   <!-- Define native library paths and output directories -->
   <PropertyGroup>
     <NativeHelpersDir>$(MSBuildThisFileDirectory)NativeHelpers</NativeHelpersDir>
-    <Arm64NativeHelpersDir>$(NativeHelpersDir)\arm64</Arm64NativeHelpersDir>
+    <Arm64NativeHelpersDir>$(NativeHelpersDir)/arm64</Arm64NativeHelpersDir>
     <NativeBuildOutputDir>$(IntermediateOutputPath)native</NativeBuildOutputDir>
   </PropertyGroup>
 
@@ -15,8 +15,8 @@
   <PropertyGroup>
     <!-- Linux ARM64 configuration -->
     <Arm64LinuxLibraryName>bridge_helper.so</Arm64LinuxLibraryName>
-    <Arm64LinuxBuildDir>$(NativeBuildOutputDir)\arm64\linux</Arm64LinuxBuildDir>
-    <Arm64LinuxLibraryPath>$(Arm64LinuxBuildDir)\$(Arm64LinuxLibraryName)</Arm64LinuxLibraryPath>
+    <Arm64LinuxBuildDir>$(NativeBuildOutputDir)/arm64/linux</Arm64LinuxBuildDir>
+    <Arm64LinuxLibraryPath>$(Arm64LinuxBuildDir)/$(Arm64LinuxLibraryName)</Arm64LinuxLibraryPath>
 
   </PropertyGroup>
 
