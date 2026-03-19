@@ -28,7 +28,7 @@ public static class BridgeInterop
         {
             // copy to temp file
             Helpers.Assert(embedded is not null);
-            Switches.TryGetSwitchValue(Switches.HelperDropPath,  out var dropPath);
+            Switches.TryGetSwitchValue(Switches.HelperDropPath, out var dropPath);
 
             var dropDir = dropPath is string dp ? Path.GetFullPath(dp) : Path.GetTempPath();
             _ = Directory.CreateDirectory(dropDir);
@@ -43,7 +43,7 @@ public static class BridgeInterop
         try
         {
             s_getReturnBuffer = s_libraryHandle.GetExport(nameof(GetReturnBuffer));
-            s_setReturnBuffer =  s_libraryHandle.GetExport(nameof(SetReturnBuffer));
+            s_setReturnBuffer = s_libraryHandle.GetExport(nameof(SetReturnBuffer));
             s_returnBufferBridge = s_libraryHandle.GetExport("ReturnBufferBridge");
 
             Helpers.Assert(s_getReturnBuffer != nint.Zero);

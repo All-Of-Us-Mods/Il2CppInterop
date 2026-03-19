@@ -3,6 +3,7 @@ using AsmResolver.DotNet;
 using AsmResolver.DotNet.Signatures;
 
 namespace Il2CppInterop.Generator.Utils;
+
 internal static class ReferenceCreator
 {
     public static MemberReference CreateFieldReference(Utf8String? name, TypeSignature fieldType, IMemberRefParent? parent)

@@ -1,8 +1,7 @@
 using System.Reflection;
+using Disarm;
 using Il2CppInterop.Common.Attributes;
 using Microsoft.Extensions.Logging;
-using Disarm;
-using Iced.Intel;
 
 namespace Il2CppInterop.Common.XrefScans;
 
