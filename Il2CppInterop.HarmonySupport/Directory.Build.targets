@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project>
+  <!-- Build tasks for native helper libraries targeting multiple platforms -->
+
+  <!-- Create directories for each platform's build output -->
+  <Target Name="CreateNativeBuildDirectories" BeforeTargets="BuildNativeHelpers">
+    <MakeDir Directories="$(Arm64LinuxBuildDir)" />
+  </Target>
+
+  <!-- Build ARM64 native helpers and embed as resources -->
+  <Target Name="BuildNativeHelpers"
+          DependsOnTargets="CreateNativeBuildDirectories"
+          BeforeTargets="SplitResourcesByCulture">
+
+    <!-- Build tls_helper for ARM64 Linux using Zig -->
+    <!-- Compile C++ source -->
+    <Exec Command="$(Arm64Compiler) $(Arm64LinuxFlags) -c &quot;$(Arm64NativeHelpersDir)\tls_helper.cpp&quot; -o &quot;$(Arm64LinuxBuildDir)\tls_helper.o&quot;"
+          Condition="Exists('$(Arm64NativeHelpersDir)\tls_helper.cpp')"
+          ContinueOnError="true"
+          EchoOff="false" />
+
+    <!-- Compile assembly source -->
+    <Exec Command="$(Arm64Compiler) $(Arm64LinuxFlags) -c &quot;$(Arm64NativeHelpersDir)\bridge.S&quot; -o &quot;$(Arm64LinuxBuildDir)\bridge.o&quot;"
+          Condition="Exists('$(Arm64NativeHelpersDir)\bridge.S')"
+          ContinueOnError="true"
+          EchoOff="false" />
+
+    <!-- Link object files into shared library -->
+    <Exec Command="$(Arm64Compiler) $(Arm64LinuxFlags) &quot;$(Arm64LinuxBuildDir)\tls_helper.o&quot; &quot;$(Arm64LinuxBuildDir)\bridge.o&quot; -o &quot;$(Arm64LinuxLibraryPath)&quot;"
+          Condition="Exists('$(Arm64LinuxBuildDir)\tls_helper.o') and Exists('$(Arm64LinuxBuildDir)\bridge.o')"
+          ContinueOnError="true"
+          EchoOff="false" />
+
+    <!-- Embed the compiled native libraries as resources immediately after building -->
+    <ItemGroup>
+      <EmbeddedResource Include="$(Arm64LinuxLibraryPath)"
+                        Condition="Exists('$(Arm64LinuxLibraryPath)')">
+        <LogicalName>bridge_helper_arm64_linux.so</LogicalName>
+      </EmbeddedResource>
+    </ItemGroup>
+  </Target>
+
+  <!-- Clean up native build artifacts -->
+  <Target Name="CleanNativeHelpers" BeforeTargets="Clean">
+    <RemoveDir Directories="$(NativeBuildOutputDir)" />
+  </Target>
+
+</Project>
+
