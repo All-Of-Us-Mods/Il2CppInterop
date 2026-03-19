@@ -311,24 +311,6 @@ internal unsafe class Il2CppDetourMethodPatcher : MethodPatcher
         var il = dmd.GetILGenerator();
         il.BeginExceptionBlock();
 
-        // Save the return buffer as soon as possible
-        // Otherwise, X8 register may be overwritten.
-        LocalBuilder returnBufferLoc = null;
-        if (hasReturnBuffer)
-        {
-            returnBufferLoc = il.DeclareLocal(typeof(IntPtr));
-            if (firstParamReturnBuffer)
-            {
-                il.Emit(OpCodes.Ldarg_0);
-            }
-            else
-            {
-                // This captures the TLS value we saved in the native bridge
-                il.Emit(OpCodes.Call, BridgeInterop.GetReturnBufferMethodInfo);
-            }
-            il.Emit(OpCodes.Stloc, returnBufferLoc);
-        }
-
         // Declare a list of variables to dereference back to the original pointers.
         // This is required due to the needed interop type conversions, so we can't directly pass some addresses as byref types
         var indirectVariables = new LocalBuilder[managedParams.Length];
@@ -380,6 +362,15 @@ internal unsafe class Il2CppDetourMethodPatcher : MethodPatcher
             if (hasReturnBuffer)
             {
                 // we moved storing return buffer to the prologue
+                if (firstParamReturnBuffer)
+                {
+                    il.Emit(OpCodes.Ldarg_0);
+                }
+                else
+                {
+                    // This captures the TLS value we saved in the native bridge
+                    il.Emit(OpCodes.Call, BridgeInterop.GetReturnBufferMethodInfo);
+                }
 
                 il.Emit(OpCodes.Ldloc, managedReturnVariable);
                 il.Emit(OpCodes.Call, ObjectBaseToPtrNotNullMethodInfo);
@@ -388,7 +379,15 @@ internal unsafe class Il2CppDetourMethodPatcher : MethodPatcher
                 il.Emit(OpCodes.Cpblk);
 
                 // Return the same pointer to the return buffer
-                il.Emit(OpCodes.Ldloc,  returnBufferLoc);
+                if (firstParamReturnBuffer)
+                {
+                    il.Emit(OpCodes.Ldarg_0);
+                }
+                else
+                {
+                    // This captures the TLS value we saved in the native bridge
+                    il.Emit(OpCodes.Call, BridgeInterop.GetReturnBufferMethodInfo);
+                }
             }
             else
             {

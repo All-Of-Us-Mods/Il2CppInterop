@@ -1,31 +1,36 @@
 #include <cstdint>
+#include <pthread.h>
 
-extern "C" thread_local intptr_t g_Arm64ReturnBuffer = 0;
+namespace {
+pthread_key_t g_Arm64ReturnBufferKey;
+pthread_once_t g_Arm64ReturnBufferKeyOnce = PTHREAD_ONCE_INIT;
+bool g_Arm64ReturnBufferKeyReady = false;
 
-extern "C" __attribute__((naked)) void CaptureX8ToTLS() {
-    __asm__ (
-        // 1. Get the thread pointer (TPIDR_EL0)
-        // On Android/ARM64, the thread pointer is in this system register
-        "mrs x9, tpidr_el0\n"
+void InitReturnBufferKey() {
+    g_Arm64ReturnBufferKeyReady = (pthread_key_create(&g_Arm64ReturnBufferKey, nullptr) == 0);
+}
 
-        // 2. Find the offset for g_Arm64ReturnBuffer
-        // This usually requires the linker to help us with an ADRP/LDR
-        // sequence to find the offset from the thread pointer.
-        "adrp x10, :gottprel:g_Arm64ReturnBuffer\n"
-        "ldr  x10, [x10, :gottprel_lo12:g_Arm64ReturnBuffer]\n"
+bool EnsureReturnBufferKey() {
+    if (pthread_once(&g_Arm64ReturnBufferKeyOnce, InitReturnBufferKey) != 0) {
+        return false;
+    }
 
-        // 3. Store X8 into the calculated TLS address [TP + Offset]
-        "str  x8, [x9, x10]\n"
+    return g_Arm64ReturnBufferKeyReady;
+}
+} // namespace
 
-        // 4. Return to the bridge
-        "ret\n"
-    );
+extern "C" void SetReturnBuffer(intptr_t value) {
+    if (!EnsureReturnBufferKey()) {
+        return;
+    }
+
+    pthread_setspecific(g_Arm64ReturnBufferKey, reinterpret_cast<void*>(static_cast<uintptr_t>(value)));
 }
 
 extern "C" intptr_t GetReturnBuffer() {
-    return g_Arm64ReturnBuffer;
-}
+    if (!EnsureReturnBufferKey()) {
+        return 0;
+    }
 
-extern "C" void SetReturnBuffer(intptr_t value) {
-    g_Arm64ReturnBuffer = value;
+    return static_cast<intptr_t>(reinterpret_cast<uintptr_t>(pthread_getspecific(g_Arm64ReturnBufferKey)));
 }

@@ -18,6 +18,7 @@ public static class BridgeInterop
     public static string LibraryPath => s_libraryFname;
     public static nint ReturnBufferBridgeFn => s_returnBufferBridge;
     public static nint SetReturnBufferFn => s_setReturnBuffer;
+    public static nint GetReturnBufferFn => s_getReturnBuffer;
 
     public static void Initialize()
     {
