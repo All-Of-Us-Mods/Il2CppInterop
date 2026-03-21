@@ -15,14 +15,14 @@ public interface IDetour : IDisposable
 
 public interface IDetourProvider
 {
-    IDetour Create<TDelegate>(nint original, TDelegate target, bool unityFunction, bool specialReturnBuffer) where TDelegate : Delegate;
+    IDetour Create<TDelegate>(nint original, TDelegate target, bool specialReturnBuffer) where TDelegate : Delegate;
 }
 
 internal static class Detour
 {
     public static IDetour Apply<T>(nint original, T target, out T trampoline) where T : Delegate
     {
-        var detour = Il2CppInteropRuntime.Instance.DetourProvider.Create(original, target, false, false);
+        var detour = Il2CppInteropRuntime.Instance.DetourProvider.Create(original, target, false);
         trampoline = detour.GenerateTrampoline<T>();
         detour.Apply();
         return detour;

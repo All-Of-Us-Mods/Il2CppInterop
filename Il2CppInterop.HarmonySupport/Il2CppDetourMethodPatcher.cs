@@ -1,6 +1,5 @@
 ﻿using System.Reflection;
 using System.Reflection.Emit;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using HarmonyLib;
 using HarmonyLib.Public.Patching;
@@ -12,7 +11,6 @@ using Il2CppInterop.Runtime.Runtime;
 using Il2CppInterop.Runtime.Runtime.VersionSpecific.MethodInfo;
 using Il2CppInterop.Runtime.Startup;
 using Microsoft.Extensions.Logging;
-using Mono.Cecil.Cil;
 using MonoMod.Cil;
 using MonoMod.RuntimeDetour;
 using MonoMod.Utils;
@@ -156,14 +154,25 @@ internal unsafe class Il2CppDetourMethodPatcher : MethodPatcher
         var unmanagedDelegate = unmanagedTrampolineMethod.CreateDelegate(unmanagedDelegateType);
         DelegateCache.Add(unmanagedDelegate);
 
-        nativeDetour = Il2CppInteropRuntime.Instance.DetourProvider.Create(
-            originalNativeMethodInfo.MethodPointer,
-            unmanagedDelegate,
-            _isUnityFunction,
-            specialReturnBuffer
+        if (_isUnityFunction)
+        {
+            // TODO: verify this is always the case
+            // Unity messages are resolved from their method info pointer
+            // so we can just swap out the method pointer to point to our trampoline, without needing a native detour
+            originalNativeMethodInfo.MethodPointer = Marshal.GetFunctionPointerForDelegate(unmanagedDelegate);
+            Logger.Instance.LogInformation("Using data hook for function {Original}", Original.FullDescription());
+        }
+        else
+        {
+            nativeDetour = Il2CppInteropRuntime.Instance.DetourProvider.Create(
+                originalNativeMethodInfo.MethodPointer,
+                unmanagedDelegate,
+                specialReturnBuffer
             );
-        nativeDetour.Apply();
-        modifiedNativeMethodInfo.MethodPointer = nativeDetour.OriginalTrampoline;
+            nativeDetour.Apply();
+
+            modifiedNativeMethodInfo.MethodPointer = nativeDetour.OriginalTrampoline;
+        }
 
         var hook = new Hook(Original, managedHookedMethod);
         hook.Apply();
