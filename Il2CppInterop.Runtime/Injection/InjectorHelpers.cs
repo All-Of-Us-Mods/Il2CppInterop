@@ -8,13 +8,10 @@ using System.Reflection.Emit;
 using System.Runtime.InteropServices;
 using System.Threading;
 using Il2CppInterop.Common;
-using Il2CppInterop.Common.Extensions;
 using Il2CppInterop.Common.XrefScans;
 using Il2CppInterop.Runtime.Injection.Hooks;
 using Il2CppInterop.Runtime.Runtime;
 using Il2CppInterop.Runtime.Runtime.VersionSpecific.Assembly;
-using Il2CppInterop.Runtime.Runtime.VersionSpecific.Class;
-using Il2CppInterop.Runtime.Runtime.VersionSpecific.FieldInfo;
 using Il2CppInterop.Runtime.Runtime.VersionSpecific.Image;
 using Il2CppInterop.Runtime.Runtime.VersionSpecific.MethodInfo;
 using Il2CppInterop.Runtime.Startup;
@@ -71,11 +68,10 @@ namespace Il2CppInterop.Runtime.Injection
         internal static void Setup()
         {
             if (InjectedAssembly == null) CreateInjectedAssembly();
-            // TODO: fix these?
-            //if (Il2CppInteropRuntime.Instance.UnityVersion.Major >= 6000)
-            //    GenericMethodGetMethodHook_Unity6.ApplyHook();
-            //else
-            //    GenericMethodGetMethodHook.ApplyHook();
+            if (Il2CppInteropRuntime.Instance.UnityVersion.Major >= 6000)
+                GenericMethodGetMethodHook_Unity6.ApplyHook();
+            else
+                GenericMethodGetMethodHook.ApplyHook();
             //GetTypeInfoFromTypeDefinitionIndexHook.ApplyHook();
             GetFieldDefaultValueHook.ApplyHook();
             ClassInit ??= FindClassInit();

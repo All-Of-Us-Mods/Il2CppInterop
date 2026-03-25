@@ -59,7 +59,7 @@ internal unsafe class Il2CppDetourMethodPatcher : MethodPatcher
     };
 
     private static readonly List<object> DelegateCache = new();
-    private static readonly List<object> DetourCache = new();
+    private static readonly List<object> HookCache = new();
 
     private INativeMethodInfoStruct modifiedNativeMethodInfo;
 
@@ -177,7 +177,7 @@ internal unsafe class Il2CppDetourMethodPatcher : MethodPatcher
         var hook = new Hook(Original, managedHookedMethod);
         hook.Apply();
 
-        DetourCache.Add(hook);
+        HookCache.Add(hook);
 
         return managedHookedMethod;
     }
