@@ -71,11 +71,12 @@ namespace Il2CppInterop.Runtime.Injection
         internal static void Setup()
         {
             if (InjectedAssembly == null) CreateInjectedAssembly();
-            if (Il2CppInteropRuntime.Instance.UnityVersion.Major >= 6000)
-                GenericMethodGetMethodHook_Unity6.ApplyHook();
-            else
-                GenericMethodGetMethodHook.ApplyHook();
-            GetTypeInfoFromTypeDefinitionIndexHook.ApplyHook();
+            // TODO: fix these?
+            //if (Il2CppInteropRuntime.Instance.UnityVersion.Major >= 6000)
+            //    GenericMethodGetMethodHook_Unity6.ApplyHook();
+            //else
+            //    GenericMethodGetMethodHook.ApplyHook();
+            //GetTypeInfoFromTypeDefinitionIndexHook.ApplyHook();
             GetFieldDefaultValueHook.ApplyHook();
             ClassInit ??= FindClassInit();
             FromIl2CppTypeHook.ApplyHook();
