@@ -19,6 +19,9 @@ namespace Il2CppInterop.Runtime.Injection.Hooks
 
         private Il2CppMethodInfo* Hook(Il2CppGenericMethod* gmethod, bool copyMethodPtr)
         {
+            if (gmethod == null || gmethod->methodDefinition == null)
+                return Original(gmethod, copyMethodPtr);
+
             if (ClassInjector.InflatedMethodFromContextDictionary.TryGetValue((IntPtr)gmethod->methodDefinition, out var methods))
             {
                 var instancePointer = gmethod->context.method_inst;
@@ -50,15 +53,8 @@ namespace Il2CppInterop.Runtime.Injection.Hooks
             }
             catch
             {
-                try
-                {
-                    if (UnityVersionHandler.HasShimForGetMethod)
-                        target = TryFindTargetMethod(false);
-                }
-                catch
-                {
-                    throw;
-                }
+                if (UnityVersionHandler.HasShimForGetMethod)
+                    target = TryFindTargetMethod(false);
 
                 if (target == IntPtr.Zero)
                     throw;

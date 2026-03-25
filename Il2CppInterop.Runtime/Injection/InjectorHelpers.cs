@@ -53,7 +53,7 @@ namespace Il2CppInterop.Runtime.Injection
             InjectedAssembly = UnityVersionHandler.NewAssembly();
             InjectedImage = UnityVersionHandler.NewImage();
 
-            InjectedAssembly.Name.Name = Marshal.StringToHGlobalAnsi("InjectedMonoTypes");
+            InjectedAssembly.Name.Name = Marshal.StringToCoTaskMemUTF8("InjectedMonoTypes");
 
             InjectedImage.Assembly = InjectedAssembly.AssemblyPointer;
             InjectedImage.Dynamic = 1;
@@ -63,6 +63,7 @@ namespace Il2CppInterop.Runtime.Injection
         }
 
         private static readonly GenericMethod_GetMethod_Hook GenericMethodGetMethodHook = new();
+        private static readonly GenericMethod_GetMethod_Unity6_Hook GenericMethodGetMethodHook_Unity6 = new();
         private static readonly MetadataCache_GetTypeInfoFromTypeDefinitionIndex_Hook GetTypeInfoFromTypeDefinitionIndexHook = new();
         private static readonly Class_GetFieldDefaultValue_Hook GetFieldDefaultValueHook = new();
         private static readonly Class_FromIl2CppType_Hook FromIl2CppTypeHook = new();
@@ -70,8 +71,11 @@ namespace Il2CppInterop.Runtime.Injection
         internal static void Setup()
         {
             if (InjectedAssembly == null) CreateInjectedAssembly();
-            GenericMethodGetMethodHook.ApplyHook();
-            //GetTypeInfoFromTypeDefinitionIndexHook.ApplyHook();
+            if (Il2CppInteropRuntime.Instance.UnityVersion.Major >= 6000)
+                GenericMethodGetMethodHook_Unity6.ApplyHook();
+            else
+                GenericMethodGetMethodHook.ApplyHook();
+            GetTypeInfoFromTypeDefinitionIndexHook.ApplyHook();
             GetFieldDefaultValueHook.ApplyHook();
             ClassInit ??= FindClassInit();
             FromIl2CppTypeHook.ApplyHook();
