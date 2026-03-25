@@ -37,7 +37,7 @@ public static class UnityFunctionDetector
 
     public static bool IsUnityAssembly(TypeDefinition type)
     {
-        var assemblyName = type.Module?.Assembly?.Name?.ToString();
+        var assemblyName = type.DeclaringModule?.Assembly?.Name?.ToString();
         if (assemblyName == null) return false;
         return assemblyName.StartsWith("UnityEngine", StringComparison.Ordinal) ||
                assemblyName.StartsWith("Unity.", StringComparison.Ordinal);
