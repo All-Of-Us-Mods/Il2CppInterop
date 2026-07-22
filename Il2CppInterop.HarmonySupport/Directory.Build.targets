@@ -16,20 +16,23 @@
     <!-- Compile C++ source -->
     <Exec Command="$(Arm64Compiler) $(Arm64LinuxFlags) -c &quot;$(Arm64NativeHelpersDir)/tls_helper.cpp&quot; -o &quot;$(Arm64LinuxBuildDir)/tls_helper.o&quot;"
           Condition="Exists('$(Arm64NativeHelpersDir)/tls_helper.cpp')"
-          ContinueOnError="true"
+          ContinueOnError="false"
           EchoOff="false" />
 
     <!-- Compile assembly source -->
     <Exec Command="$(Arm64Compiler) $(Arm64LinuxFlags) -c &quot;$(Arm64NativeHelpersDir)/bridge.S&quot; -o &quot;$(Arm64LinuxBuildDir)/bridge.o&quot;"
           Condition="Exists('$(Arm64NativeHelpersDir)/bridge.S')"
-          ContinueOnError="true"
+          ContinueOnError="false"
           EchoOff="false" />
 
     <!-- Link object files into shared library -->
     <Exec Command="$(Arm64Compiler) $(Arm64LinuxFlags) &quot;$(Arm64LinuxBuildDir)/tls_helper.o&quot; &quot;$(Arm64LinuxBuildDir)/bridge.o&quot; -o &quot;$(Arm64LinuxLibraryPath)&quot;"
           Condition="Exists('$(Arm64LinuxBuildDir)/tls_helper.o') and Exists('$(Arm64LinuxBuildDir)/bridge.o')"
-          ContinueOnError="true"
+          ContinueOnError="false"
           EchoOff="false" />
+
+    <Error Condition="!Exists('$(Arm64LinuxLibraryPath)')"
+           Text="The ARM64 return-buffer helper was not produced; refusing to package HarmonySupport without it." />
 
     <!-- Embed the compiled native libraries as resources immediately after building -->
     <ItemGroup>
@@ -46,4 +49,3 @@
   </Target>
 
 </Project>
-

@@ -28,7 +28,12 @@ internal class MemoryUtils
     public static unsafe nint FindSignatureInBlock(nint block, long blockSize, char[] pattern, char[] mask,
         long sigOffset = 0)
     {
-        for (long address = 0; address < blockSize; address++)
+        if (block == nint.Zero || mask.Length == 0 || pattern.Length < mask.Length || blockSize < mask.Length)
+            return 0;
+
+        // The inner loop reads mask.Length bytes, so stop at the final complete
+        // candidate instead of reading past the mapped block boundary.
+        for (long address = 0; address <= blockSize - mask.Length; address++)
         {
             var found = true;
             for (uint offset = 0; offset < mask.Length; offset++)

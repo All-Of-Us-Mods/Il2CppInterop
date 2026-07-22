@@ -23,11 +23,10 @@
   <!-- Compiler configuration for ARM64 using Zig -->
   <PropertyGroup>
     <!-- Zig provides built-in cross-compilation support without requiring separate toolchains -->
-    <Arm64Compiler>zig</Arm64Compiler>
+    <Arm64Compiler Condition="'$(Arm64Compiler)' == ''">zig</Arm64Compiler>
 
     <!-- Linux ARM64 with musl libc -->
-    <Arm64LinuxFlags>c++ -target aarch64-linux-musl -shared -fPIC -O2</Arm64LinuxFlags>
+    <Arm64LinuxFlags Condition="'$(Arm64LinuxFlags)' == ''">c++ -target aarch64-linux-musl -shared -fPIC -O2</Arm64LinuxFlags>
   </PropertyGroup>
 
 </Project>
-

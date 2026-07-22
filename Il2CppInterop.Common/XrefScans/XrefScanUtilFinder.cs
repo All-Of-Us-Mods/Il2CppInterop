@@ -78,28 +78,20 @@ internal static class XrefScanUtilFinder
 
     public static ulong ExtractTargetAddress(in Arm64Instruction instruction)
     {
-        if (instruction.Op0Kind == Arm64OperandKind.None)
+        // Only direct branches have a PC-relative immediate that can be resolved
+        // without knowing the current register state. BR/BLR use a register operand;
+        // treating their zero-valued Imm field as a relative address makes the
+        // instruction incorrectly point to itself.
+        return instruction switch
         {
-            Logger.Instance.LogInformation("Not enough operands to extract target address");
-            return 0;
-        }
-
-        int lastOperand = -1;
-        if (instruction.Op0Kind != Arm64OperandKind.None)
-            lastOperand = 0;
-        if (instruction.Op1Kind != Arm64OperandKind.None)
-            lastOperand = 1;
-        if (instruction.Op2Kind != Arm64OperandKind.None)
-            lastOperand = 2;
-        if (instruction.Op3Kind != Arm64OperandKind.None)
-            lastOperand = 3;
-
-        return lastOperand switch
-        {
-            0 => (ulong)((long)instruction.Address + instruction.Op0Imm),
-            1 => (ulong)((long)instruction.Address + instruction.Op1Imm),
-            2 => (ulong)((long)instruction.Address + instruction.Op2Imm),
-            3 => (ulong)((long)instruction.Address + instruction.Op3Imm),
+            { Op0Kind: Arm64OperandKind.ImmediatePcRelative } =>
+                (ulong)((long)instruction.Address + instruction.Op0Imm),
+            { Op1Kind: Arm64OperandKind.ImmediatePcRelative } =>
+                (ulong)((long)instruction.Address + instruction.Op1Imm),
+            { Op2Kind: Arm64OperandKind.ImmediatePcRelative } =>
+                (ulong)((long)instruction.Address + instruction.Op2Imm),
+            { Op3Kind: Arm64OperandKind.ImmediatePcRelative } =>
+                (ulong)((long)instruction.Address + instruction.Op3Imm),
             _ => 0,
         };
     }

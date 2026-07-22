@@ -22,7 +22,8 @@ public static class XrefScannerLowLevel
                 })
             {
                 var target = XrefScanUtilFinder.ExtractTargetAddress(instruction);
-                yield return (IntPtr)target;
+                if (target != 0)
+                    yield return (IntPtr)target;
             }
         }
     }

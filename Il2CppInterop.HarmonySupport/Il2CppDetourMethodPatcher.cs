@@ -154,7 +154,7 @@ internal unsafe class Il2CppDetourMethodPatcher : MethodPatcher
         var unmanagedDelegate = unmanagedTrampolineMethod.CreateDelegate(unmanagedDelegateType);
         DelegateCache.Add(unmanagedDelegate);
 
-        if (_isUnityFunction)
+        if (_isUnityFunction && !specialReturnBuffer)
         {
             // TODO: verify this is always the case
             // Unity messages are resolved from their method info pointer
@@ -320,6 +320,24 @@ internal unsafe class Il2CppDetourMethodPatcher : MethodPatcher
         var il = dmd.GetILGenerator();
         il.BeginExceptionBlock();
 
+        // Capture this invocation's return buffer before the managed method runs.
+        // A nested patched call on the same thread replaces the bridge's TLS value.
+        LocalBuilder returnBufferVariable = null;
+        if (hasReturnBuffer)
+        {
+            returnBufferVariable = il.DeclareLocal(typeof(IntPtr));
+            if (firstParamReturnBuffer)
+            {
+                il.Emit(OpCodes.Ldarg_0);
+            }
+            else
+            {
+                il.Emit(OpCodes.Call, BridgeInterop.GetReturnBufferMethodInfo);
+            }
+
+            il.Emit(OpCodes.Stloc, returnBufferVariable);
+        }
+
         // Declare a list of variables to dereference back to the original pointers.
         // This is required due to the needed interop type conversions, so we can't directly pass some addresses as byref types
         var indirectVariables = new LocalBuilder[managedParams.Length];
@@ -370,16 +388,7 @@ internal unsafe class Il2CppDetourMethodPatcher : MethodPatcher
         {
             if (hasReturnBuffer)
             {
-                // we moved storing return buffer to the prologue
-                if (firstParamReturnBuffer)
-                {
-                    il.Emit(OpCodes.Ldarg_0);
-                }
-                else
-                {
-                    // This captures the TLS value we saved in the native bridge
-                    il.Emit(OpCodes.Call, BridgeInterop.GetReturnBufferMethodInfo);
-                }
+                il.Emit(OpCodes.Ldloc, returnBufferVariable);
 
                 il.Emit(OpCodes.Ldloc, managedReturnVariable);
                 il.Emit(OpCodes.Call, ObjectBaseToPtrNotNullMethodInfo);
@@ -388,15 +397,7 @@ internal unsafe class Il2CppDetourMethodPatcher : MethodPatcher
                 il.Emit(OpCodes.Cpblk);
 
                 // Return the same pointer to the return buffer
-                if (firstParamReturnBuffer)
-                {
-                    il.Emit(OpCodes.Ldarg_0);
-                }
-                else
-                {
-                    // This captures the TLS value we saved in the native bridge
-                    il.Emit(OpCodes.Call, BridgeInterop.GetReturnBufferMethodInfo);
-                }
+                il.Emit(OpCodes.Ldloc, returnBufferVariable);
             }
             else
             {
