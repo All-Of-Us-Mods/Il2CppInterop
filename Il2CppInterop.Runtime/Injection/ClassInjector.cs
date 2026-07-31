@@ -252,6 +252,7 @@ public static unsafe partial class ClassInjector
             .Where(IsFieldEligible)
             .ToArray();
         classPointer.FieldCount = (ushort)fieldsToInject.Length;
+        classPointer.HasReferences = baseClassPointer.HasReferences;
 
         var il2cppFields =
             (Il2CppFieldInfo*)Marshal.AllocHGlobal(classPointer.FieldCount * UnityVersionHandler.FieldInfoSize());
@@ -288,8 +289,11 @@ public static unsafe partial class ClassInjector
             }
 
             fieldInfo.Type = (Il2CppTypeStruct*)fieldTypePtr;
+            var fieldIsValueType = IL2CPP.il2cpp_class_is_valuetype(fieldInfoClass);
+            classPointer.HasReferences |= !fieldIsValueType ||
+                                          IL2CPP.il2cpp_class_has_references(fieldInfoClass);
 
-            if (IL2CPP.il2cpp_class_is_valuetype(fieldInfoClass))
+            if (fieldIsValueType)
             {
                 uint _align = 0;
                 var fieldSize = IL2CPP.il2cpp_class_value_size(fieldInfoClass, ref _align);
