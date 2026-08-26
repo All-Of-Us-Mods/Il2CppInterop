@@ -22,20 +22,33 @@ namespace Il2CppInterop.Runtime.Injection.Hooks
             if (gmethod == null || gmethod->methodDefinition == null)
                 return Original(gmethod, copyMethodPtr);
 
+            var instancePointer = gmethod->context.method_inst;
+
+            if (instancePointer == null)
+                return Original(gmethod, copyMethodPtr);
+
             if (ClassInjector.InflatedMethodFromContextDictionary.TryGetValue((IntPtr)gmethod->methodDefinition, out var methods))
             {
-                var instancePointer = gmethod->context.method_inst;
                 if (methods.Item2.TryGetValue((IntPtr)instancePointer, out var inflatedMethodPointer))
                     return (Il2CppMethodInfo*)inflatedMethodPointer;
 
                 var typeArguments = new Type[instancePointer->type_argc];
                 for (var i = 0; i < instancePointer->type_argc; i++)
-                    typeArguments[i] = ClassInjector.SystemTypeFromIl2CppType(instancePointer->type_argv[i]);
+                {
+                    var il2cppType = instancePointer->type_argv[i];
+                    if (il2cppType == null)
+                        return Original(gmethod, copyMethodPtr);
+
+                    typeArguments[i] = ClassInjector.SystemTypeFromIl2CppType(il2cppType);
+                }
+
                 var inflatedMethod = methods.Item1.MakeGenericMethod(typeArguments);
                 Logger.Instance.LogTrace("Inflated method: {InflatedMethod}", inflatedMethod.Name);
+
                 inflatedMethodPointer = (IntPtr)ClassInjector.ConvertMethodInfo(inflatedMethod,
                     UnityVersionHandler.Wrap(UnityVersionHandler.Wrap(gmethod->methodDefinition).Class));
-                methods.Item2.Add((IntPtr)instancePointer, inflatedMethodPointer);
+
+                methods.Item2[(IntPtr)instancePointer] = inflatedMethodPointer;
 
                 return (Il2CppMethodInfo*)inflatedMethodPointer;
             }
