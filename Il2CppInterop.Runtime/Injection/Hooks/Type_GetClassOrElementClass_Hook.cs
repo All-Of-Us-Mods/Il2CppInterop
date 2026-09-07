@@ -8,9 +8,9 @@ using Microsoft.Extensions.Logging;
 
 namespace Il2CppInterop.Runtime.Injection.Hooks;
 
-internal unsafe class Class_FromIl2CppType_Hook : Hook<Class_FromIl2CppType_Hook.MethodDelegate>
+internal unsafe class Type_GetClassOrElementClass_Hook : Hook<Type_GetClassOrElementClass_Hook.MethodDelegate>
 {
-    public override string TargetMethodName => "Class::FromIl2CppType";
+    public override string TargetMethodName => "Type::GetClassOrElementClass";
     public override MethodDelegate GetDetour() => Hook;
 
     /// Common version of the Il2CppType, the only thing that changed between unity version are the bitfields values that we don't use
@@ -38,9 +38,9 @@ internal unsafe class Class_FromIl2CppType_Hook : Hook<Class_FromIl2CppType_Hook
 
     public override IntPtr FindTargetMethod()
     {
-        var classFromTypeAPI = InjectorHelpers.GetIl2CppExport(nameof(IL2CPP.il2cpp_class_from_il2cpp_type));
-        Logger.Instance.LogTrace("il2cpp_class_from_il2cpp_type: 0x{ClassFromTypeApiAddress}", classFromTypeAPI.ToInt64().ToString("X2"));
+        var getclassAPI = InjectorHelpers.GetIl2CppExport(nameof(IL2CPP.il2cpp_type_get_class_or_element_class));
+        Logger.Instance.LogTrace("il2cpp_type_get_class_or_element_class: 0x{ClassFromTypeApiAddress}", getclassAPI.ToInt64().ToString("X2"));
 
-        return XrefScannerLowLevel.JumpTargets(classFromTypeAPI).First();
+        return XrefScannerLowLevel.JumpTargets(getclassAPI).First();
     }
 }

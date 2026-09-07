@@ -229,8 +229,8 @@ public static unsafe partial class ClassInjector
         classPointer.NativeSize = -1;
         classPointer.ActualSize = classPointer.InstanceSize = baseClassPointer.InstanceSize;
 
-        classPointer.Initialized = true;
-        classPointer.InitializedAndNoError = true;
+        classPointer.Initialized = false;
+        classPointer.InitializedAndNoError = false;
         classPointer.SizeInited = true;
         classPointer.HasFinalize = true;
         classPointer.IsVtableInitialized = true;
@@ -523,18 +523,25 @@ public static unsafe partial class ClassInjector
 
         InjectorHelpers.AddTypeToLookup(type, classPointer.Pointer);
 
+        InjectorHelpers.ClassInit(classPointer.ClassPointer);
+
         if (options.LogSuccess)
             Logger.Instance.LogInformation("Registered mono type {Type} in il2cpp domain", type);
     }
 
     private static bool IsTypeSupported(Type type)
     {
-        if (type.IsValueType ||
-            type == typeof(string) ||
-            type.IsGenericParameter) return true;
-        if (type.IsByRef) return IsTypeSupported(type.GetElementType());
+        while (true)
+        {
+            if (type.IsValueType || type == typeof(string) || type.IsGenericParameter) return true;
+            if (type.IsByRef)
+            {
+                type = type.GetElementType();
+                continue;
+            }
 
-        return typeof(Il2CppObjectBase).IsAssignableFrom(type);
+            return typeof(Il2CppObjectBase).IsAssignableFrom(type);
+        }
     }
 
     private static bool IsFieldEligible(FieldInfo field)
