@@ -28,10 +28,13 @@ public static unsafe class IL2CPP
 
     private static nint Resolve(string originalName)
     {
-        string mapped = FusionInterop.get_il2cpp_api(originalName);
+        string mapped = FusionInterop.GetIl2CppApi(originalName);
         if (!NativeLibrary.TryGetExport(s_nativeHandle, mapped, out var addr))
-            throw new DllNotFoundException("Failed to resolve il2cpp export '" + originalName + "' (mapped '" + mapped +
-                                           "')");
+        {
+            Logger.Instance.LogWarning("Failed to resolve il2cpp export '{originalName}' (mapped '{mapped}')", originalName, mapped);
+            return nint.Zero;
+        }
+
         return addr;
     }
 
