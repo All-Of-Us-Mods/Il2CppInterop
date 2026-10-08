@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
@@ -16,14 +17,227 @@ using Microsoft.Extensions.Logging;
 
 namespace Il2CppInterop.Runtime;
 
+[SuppressMessage("Naming", "CA1707:Identifiers should not contain underscores")]
+[SuppressMessage("ReSharper", "FieldCanBeMadeReadOnly.Local")]
+[SuppressMessage("ReSharper", "InconsistentNaming")]
 public static unsafe class IL2CPP
 {
-    private static readonly Dictionary<string, IntPtr> ourImagesMap = new();
+    private static readonly Dictionary<string, nint> ourImagesMap = new();
+
+    private static readonly nint s_nativeHandle;
+
+    private static nint Resolve(string originalName)
+    {
+        string mapped = FusionInterop.get_il2cpp_api(originalName);
+        if (!NativeLibrary.TryGetExport(s_nativeHandle, mapped, out var addr))
+            throw new DllNotFoundException("Failed to resolve il2cpp export '" + originalName + "' (mapped '" + mapped +
+                                           "')");
+        return addr;
+    }
 
     static IL2CPP()
     {
+        s_nativeHandle = NativeLibrary.Load("libil2cpp.so", typeof(IL2CPP).Assembly, null);
+        s_il2cpp_init = Resolve("il2cpp_init");
+        s_il2cpp_init_utf16 = Resolve("il2cpp_init_utf16");
+        s_il2cpp_shutdown = Resolve("il2cpp_shutdown");
+        s_il2cpp_set_config_dir = Resolve("il2cpp_set_config_dir");
+        s_il2cpp_set_data_dir = Resolve("il2cpp_set_data_dir");
+        s_il2cpp_set_temp_dir = Resolve("il2cpp_set_temp_dir");
+        s_il2cpp_set_commandline_arguments = Resolve("il2cpp_set_commandline_arguments");
+        s_il2cpp_set_commandline_arguments_utf16 = Resolve("il2cpp_set_commandline_arguments_utf16");
+        s_il2cpp_set_config_utf16 = Resolve("il2cpp_set_config_utf16");
+        s_il2cpp_set_config = Resolve("il2cpp_set_config");
+        s_il2cpp_set_memory_callbacks = Resolve("il2cpp_set_memory_callbacks");
+        s_il2cpp_get_corlib = Resolve("il2cpp_get_corlib");
+        s_il2cpp_add_internal_call = Resolve("il2cpp_add_internal_call");
+        s_il2cpp_resolve_icall = Resolve("il2cpp_resolve_icall");
+        s_il2cpp_alloc = Resolve("il2cpp_alloc");
+        s_il2cpp_free = Resolve("il2cpp_free");
+        s_il2cpp_array_class_get = Resolve("il2cpp_array_class_get");
+        s_il2cpp_array_length = Resolve("il2cpp_array_length");
+        s_il2cpp_array_get_byte_length = Resolve("il2cpp_array_get_byte_length");
+        s_il2cpp_array_new = Resolve("il2cpp_array_new");
+        s_il2cpp_array_new_specific = Resolve("il2cpp_array_new_specific");
+        s_il2cpp_array_new_full = Resolve("il2cpp_array_new_full");
+        s_il2cpp_bounded_array_class_get = Resolve("il2cpp_bounded_array_class_get");
+        s_il2cpp_array_element_size = Resolve("il2cpp_array_element_size");
+        s_il2cpp_assembly_get_image = Resolve("il2cpp_assembly_get_image");
+        s_il2cpp_class_enum_basetype = Resolve("il2cpp_class_enum_basetype");
+        s_il2cpp_class_is_generic = Resolve("il2cpp_class_is_generic");
+        s_il2cpp_class_is_inflated = Resolve("il2cpp_class_is_inflated");
+        s_il2cpp_class_is_assignable_from = Resolve("il2cpp_class_is_assignable_from");
+        s_il2cpp_class_is_subclass_of = Resolve("il2cpp_class_is_subclass_of");
+        s_il2cpp_class_has_parent = Resolve("il2cpp_class_has_parent");
+        s_il2cpp_class_from_il2cpp_type = Resolve("il2cpp_class_from_il2cpp_type");
+        s_il2cpp_class_from_name = Resolve("il2cpp_class_from_name");
+        s_il2cpp_class_from_system_type = Resolve("il2cpp_class_from_system_type");
+        s_il2cpp_class_get_element_class = Resolve("il2cpp_class_get_element_class");
+        s_il2cpp_class_get_events = Resolve("il2cpp_class_get_events");
+        s_il2cpp_class_get_fields = Resolve("il2cpp_class_get_fields");
+        s_il2cpp_class_get_nested_types = Resolve("il2cpp_class_get_nested_types");
+        s_il2cpp_class_get_interfaces = Resolve("il2cpp_class_get_interfaces");
+        s_il2cpp_class_get_properties = Resolve("il2cpp_class_get_properties");
+        s_il2cpp_class_get_property_from_name = Resolve("il2cpp_class_get_property_from_name");
+        s_il2cpp_class_get_field_from_name = Resolve("il2cpp_class_get_field_from_name");
+        s_il2cpp_class_get_methods = Resolve("il2cpp_class_get_methods");
+        s_il2cpp_class_get_method_from_name = Resolve("il2cpp_class_get_method_from_name");
+        s_il2cpp_class_get_name = Resolve("il2cpp_class_get_name");
+        s_il2cpp_class_get_namespace = Resolve("il2cpp_class_get_namespace");
+        s_il2cpp_class_get_parent = Resolve("il2cpp_class_get_parent");
+        s_il2cpp_class_get_declaring_type = Resolve("il2cpp_class_get_declaring_type");
+        s_il2cpp_class_instance_size = Resolve("il2cpp_class_instance_size");
+        s_il2cpp_class_num_fields = Resolve("il2cpp_class_num_fields");
+        s_il2cpp_class_is_valuetype = Resolve("il2cpp_class_is_valuetype");
+        s_il2cpp_class_value_size = Resolve("il2cpp_class_value_size");
+        s_il2cpp_class_is_blittable = Resolve("il2cpp_class_is_blittable");
+        s_il2cpp_class_get_flags = Resolve("il2cpp_class_get_flags");
+        s_il2cpp_class_is_abstract = Resolve("il2cpp_class_is_abstract");
+        s_il2cpp_class_is_interface = Resolve("il2cpp_class_is_interface");
+        s_il2cpp_class_array_element_size = Resolve("il2cpp_class_array_element_size");
+        s_il2cpp_class_from_type = Resolve("il2cpp_class_from_type");
+        s_il2cpp_class_get_type = Resolve("il2cpp_class_get_type");
+        s_il2cpp_class_get_type_token = Resolve("il2cpp_class_get_type_token");
+        s_il2cpp_class_has_attribute = Resolve("il2cpp_class_has_attribute");
+        s_il2cpp_class_has_references = Resolve("il2cpp_class_has_references");
+        s_il2cpp_class_is_enum = Resolve("il2cpp_class_is_enum");
+        s_il2cpp_class_get_image = Resolve("il2cpp_class_get_image");
+        s_il2cpp_class_get_assemblyname = Resolve("il2cpp_class_get_assemblyname");
+        s_il2cpp_class_get_rank = Resolve("il2cpp_class_get_rank");
+        s_il2cpp_class_get_bitmap_size = Resolve("il2cpp_class_get_bitmap_size");
+        s_il2cpp_class_get_bitmap = Resolve("il2cpp_class_get_bitmap");
+        s_il2cpp_stats_dump_to_file = Resolve("il2cpp_stats_dump_to_file");
+        s_il2cpp_domain_get = Resolve("il2cpp_domain_get");
+        s_il2cpp_domain_assembly_open = Resolve("il2cpp_domain_assembly_open");
+        s_il2cpp_domain_get_assemblies = Resolve("il2cpp_domain_get_assemblies");
+        s_il2cpp_exception_from_name_msg = Resolve("il2cpp_exception_from_name_msg");
+        s_il2cpp_get_exception_argument_null = Resolve("il2cpp_get_exception_argument_null");
+        s_il2cpp_format_exception = Resolve("il2cpp_format_exception");
+        s_il2cpp_format_stack_trace = Resolve("il2cpp_format_stack_trace");
+        s_il2cpp_unhandled_exception = Resolve("il2cpp_unhandled_exception");
+        s_il2cpp_field_get_flags = Resolve("il2cpp_field_get_flags");
+        s_il2cpp_field_get_name = Resolve("il2cpp_field_get_name");
+        s_il2cpp_field_get_parent = Resolve("il2cpp_field_get_parent");
+        s_il2cpp_field_get_offset = Resolve("il2cpp_field_get_offset");
+        s_il2cpp_field_get_type = Resolve("il2cpp_field_get_type");
+        s_il2cpp_field_get_value = Resolve("il2cpp_field_get_value");
+        s_il2cpp_field_get_value_object = Resolve("il2cpp_field_get_value_object");
+        s_il2cpp_field_has_attribute = Resolve("il2cpp_field_has_attribute");
+        s_il2cpp_field_set_value = Resolve("il2cpp_field_set_value");
+        s_il2cpp_field_static_get_value = Resolve("il2cpp_field_static_get_value");
+        s_il2cpp_field_static_set_value = Resolve("il2cpp_field_static_set_value");
+        s_il2cpp_field_set_value_object = Resolve("il2cpp_field_set_value_object");
+        s_il2cpp_gc_collect = Resolve("il2cpp_gc_collect");
+        s_il2cpp_gc_collect_a_little = Resolve("il2cpp_gc_collect_a_little");
+        s_il2cpp_gc_disable = Resolve("il2cpp_gc_disable");
+        s_il2cpp_gc_enable = Resolve("il2cpp_gc_enable");
+        s_il2cpp_gc_is_disabled = Resolve("il2cpp_gc_is_disabled");
+        s_il2cpp_gc_get_used_size = Resolve("il2cpp_gc_get_used_size");
+        s_il2cpp_gc_get_heap_size = Resolve("il2cpp_gc_get_heap_size");
+        s_il2cpp_gc_wbarrier_set_field = Resolve("il2cpp_gc_wbarrier_set_field");
+        s_il2cpp_gchandle_new = Resolve("il2cpp_gchandle_new");
+        s_il2cpp_gchandle_new_weakref = Resolve("il2cpp_gchandle_new_weakref");
+        s_il2cpp_gchandle_get_target = Resolve("il2cpp_gchandle_get_target");
+        s_il2cpp_gchandle_free = Resolve("il2cpp_gchandle_free");
+        s_il2cpp_unity_liveness_calculation_begin = Resolve("il2cpp_unity_liveness_calculation_begin");
+        s_il2cpp_unity_liveness_calculation_end = Resolve("il2cpp_unity_liveness_calculation_end");
+        s_il2cpp_unity_liveness_calculation_from_root = Resolve("il2cpp_unity_liveness_calculation_from_root");
+        s_il2cpp_unity_liveness_calculation_from_statics = Resolve("il2cpp_unity_liveness_calculation_from_statics");
+        s_il2cpp_method_get_return_type = Resolve("il2cpp_method_get_return_type");
+        s_il2cpp_method_get_declaring_type = Resolve("il2cpp_method_get_declaring_type");
+        s_il2cpp_method_get_name = Resolve("il2cpp_method_get_name");
+        s__il2cpp_method_get_from_reflection = Resolve("il2cpp_method_get_from_reflection");
+        s_il2cpp_method_get_object = Resolve("il2cpp_method_get_object");
+        s_il2cpp_method_is_generic = Resolve("il2cpp_method_is_generic");
+        s_il2cpp_method_is_inflated = Resolve("il2cpp_method_is_inflated");
+        s_il2cpp_method_is_instance = Resolve("il2cpp_method_is_instance");
+        s_il2cpp_method_get_param_count = Resolve("il2cpp_method_get_param_count");
+        s_il2cpp_method_get_param = Resolve("il2cpp_method_get_param");
+        s_il2cpp_method_get_class = Resolve("il2cpp_method_get_class");
+        s_il2cpp_method_has_attribute = Resolve("il2cpp_method_has_attribute");
+        s_il2cpp_method_get_flags = Resolve("il2cpp_method_get_flags");
+        s_il2cpp_method_get_token = Resolve("il2cpp_method_get_token");
+        s_il2cpp_method_get_param_name = Resolve("il2cpp_method_get_param_name");
+        s_il2cpp_profiler_install = Resolve("il2cpp_profiler_install");
+        s_il2cpp_profiler_install_enter_leave = Resolve("il2cpp_profiler_install_enter_leave");
+        s_il2cpp_profiler_install_allocation = Resolve("il2cpp_profiler_install_allocation");
+        s_il2cpp_profiler_install_gc = Resolve("il2cpp_profiler_install_gc");
+        s_il2cpp_profiler_install_fileio = Resolve("il2cpp_profiler_install_fileio");
+        s_il2cpp_profiler_install_thread = Resolve("il2cpp_profiler_install_thread");
+        s_il2cpp_property_get_flags = Resolve("il2cpp_property_get_flags");
+        s_il2cpp_property_get_get_method = Resolve("il2cpp_property_get_get_method");
+        s_il2cpp_property_get_set_method = Resolve("il2cpp_property_get_set_method");
+        s_il2cpp_property_get_name = Resolve("il2cpp_property_get_name");
+        s_il2cpp_property_get_parent = Resolve("il2cpp_property_get_parent");
+        s_il2cpp_object_get_class = Resolve("il2cpp_object_get_class");
+        s_il2cpp_object_get_size = Resolve("il2cpp_object_get_size");
+        s_il2cpp_object_get_virtual_method = Resolve("il2cpp_object_get_virtual_method");
+        s_il2cpp_object_new = Resolve("il2cpp_object_new");
+        s_il2cpp_object_unbox = Resolve("il2cpp_object_unbox");
+        s_il2cpp_value_box = Resolve("il2cpp_value_box");
+        s_il2cpp_monitor_enter = Resolve("il2cpp_monitor_enter");
+        s_il2cpp_monitor_try_enter = Resolve("il2cpp_monitor_try_enter");
+        s_il2cpp_monitor_exit = Resolve("il2cpp_monitor_exit");
+        s_il2cpp_monitor_pulse = Resolve("il2cpp_monitor_pulse");
+        s_il2cpp_monitor_pulse_all = Resolve("il2cpp_monitor_pulse_all");
+        s_il2cpp_monitor_wait = Resolve("il2cpp_monitor_wait");
+        s_il2cpp_monitor_try_wait = Resolve("il2cpp_monitor_try_wait");
+        s_il2cpp_runtime_invoke = Resolve("il2cpp_runtime_invoke");
+        s_il2cpp_runtime_invoke_convert_args = Resolve("il2cpp_runtime_invoke_convert_args");
+        s_il2cpp_runtime_class_init = Resolve("il2cpp_runtime_class_init");
+        s_il2cpp_runtime_object_init = Resolve("il2cpp_runtime_object_init");
+        s_il2cpp_runtime_object_init_exception = Resolve("il2cpp_runtime_object_init_exception");
+        s_il2cpp_string_length = Resolve("il2cpp_string_length");
+        s_il2cpp_string_chars = Resolve("il2cpp_string_chars");
+        s_il2cpp_string_new = Resolve("il2cpp_string_new");
+        s_il2cpp_string_new_len = Resolve("il2cpp_string_new_len");
+        s_il2cpp_string_new_utf16 = Resolve("il2cpp_string_new_utf16");
+        s_il2cpp_string_new_wrapper = Resolve("il2cpp_string_new_wrapper");
+        s_il2cpp_string_intern = Resolve("il2cpp_string_intern");
+        s_il2cpp_string_is_interned = Resolve("il2cpp_string_is_interned");
+        s_il2cpp_thread_current = Resolve("il2cpp_thread_current");
+        s_il2cpp_thread_attach = Resolve("il2cpp_thread_attach");
+        s_il2cpp_thread_detach = Resolve("il2cpp_thread_detach");
+        s_il2cpp_thread_get_all_attached_threads = Resolve("il2cpp_thread_get_all_attached_threads");
+        s_il2cpp_is_vm_thread = Resolve("il2cpp_is_vm_thread");
+        s_il2cpp_current_thread_walk_frame_stack = Resolve("il2cpp_current_thread_walk_frame_stack");
+        s_il2cpp_thread_walk_frame_stack = Resolve("il2cpp_thread_walk_frame_stack");
+        s_il2cpp_current_thread_get_top_frame = Resolve("il2cpp_current_thread_get_top_frame");
+        s_il2cpp_thread_get_top_frame = Resolve("il2cpp_thread_get_top_frame");
+        s_il2cpp_current_thread_get_frame_at = Resolve("il2cpp_current_thread_get_frame_at");
+        s_il2cpp_thread_get_frame_at = Resolve("il2cpp_thread_get_frame_at");
+        s_il2cpp_current_thread_get_stack_depth = Resolve("il2cpp_current_thread_get_stack_depth");
+        s_il2cpp_thread_get_stack_depth = Resolve("il2cpp_thread_get_stack_depth");
+        s_il2cpp_type_get_object = Resolve("il2cpp_type_get_object");
+        s_il2cpp_type_get_type = Resolve("il2cpp_type_get_type");
+        s_il2cpp_type_get_class_or_element_class = Resolve("il2cpp_type_get_class_or_element_class");
+        s_il2cpp_type_get_name = Resolve("il2cpp_type_get_name");
+        s_il2cpp_type_is_byref = Resolve("il2cpp_type_is_byref");
+        s_il2cpp_type_get_attrs = Resolve("il2cpp_type_get_attrs");
+        s_il2cpp_type_equals = Resolve("il2cpp_type_equals");
+        s_il2cpp_type_get_assembly_qualified_name = Resolve("il2cpp_type_get_assembly_qualified_name");
+        s_il2cpp_image_get_assembly = Resolve("il2cpp_image_get_assembly");
+        s_il2cpp_image_get_name = Resolve("il2cpp_image_get_name");
+        s_il2cpp_image_get_filename = Resolve("il2cpp_image_get_filename");
+        s_il2cpp_image_get_entry_point = Resolve("il2cpp_image_get_entry_point");
+        s_il2cpp_image_get_class_count = Resolve("il2cpp_image_get_class_count");
+        s_il2cpp_image_get_class = Resolve("il2cpp_image_get_class");
+        s_il2cpp_capture_memory_snapshot = Resolve("il2cpp_capture_memory_snapshot");
+        s_il2cpp_free_captured_memory_snapshot = Resolve("il2cpp_free_captured_memory_snapshot");
+        s_il2cpp_set_find_plugin_callback = Resolve("il2cpp_set_find_plugin_callback");
+        s_il2cpp_register_log_callback = Resolve("il2cpp_register_log_callback");
+        s_il2cpp_debugger_set_agent_options = Resolve("il2cpp_debugger_set_agent_options");
+        s_il2cpp_is_debugger_attached = Resolve("il2cpp_is_debugger_attached");
+        s_il2cpp_unity_install_unitytls_interface = Resolve("il2cpp_unity_install_unitytls_interface");
+        s_il2cpp_custom_attrs_from_class = Resolve("il2cpp_custom_attrs_from_class");
+        s_il2cpp_custom_attrs_from_method = Resolve("il2cpp_custom_attrs_from_method");
+        s_il2cpp_custom_attrs_get_attr = Resolve("il2cpp_custom_attrs_get_attr");
+        s_il2cpp_custom_attrs_has_attr = Resolve("il2cpp_custom_attrs_has_attr");
+        s_il2cpp_custom_attrs_construct = Resolve("il2cpp_custom_attrs_construct");
+        s_il2cpp_custom_attrs_free = Resolve("il2cpp_custom_attrs_free");
+
         var domain = il2cpp_domain_get();
-        if (domain == IntPtr.Zero)
+        if (domain == nint.Zero)
         {
             Logger.Instance.LogError("No il2cpp domain found; sad!");
             return;
@@ -39,48 +253,47 @@ public static unsafe class IL2CPP
         }
     }
 
-    internal static IntPtr GetIl2CppImage(string name)
+    internal static nint GetIl2CppImage(string name)
     {
-        if (ourImagesMap.ContainsKey(name)) return ourImagesMap[name];
-        return IntPtr.Zero;
+        return ourImagesMap.TryGetValue(name, out var image) ? image : nint.Zero;
     }
 
-    internal static IntPtr[] GetIl2CppImages()
+    internal static nint[] GetIl2CppImages()
     {
         return ourImagesMap.Values.ToArray();
     }
 
-    public static IntPtr GetIl2CppClass(string assemblyName, string namespaze, string className)
+    public static nint GetIl2CppClass(string assemblyName, string namespaze, string className)
     {
         if (!ourImagesMap.TryGetValue(assemblyName, out var image))
         {
             Logger.Instance.LogError("Assembly {AssemblyName} is not registered in il2cpp", assemblyName);
-            return IntPtr.Zero;
+            return nint.Zero;
         }
 
         var clazz = il2cpp_class_from_name(image, namespaze, className);
         return clazz;
     }
 
-    public static IntPtr GetIl2CppField(IntPtr clazz, string fieldName)
+    public static nint GetIl2CppField(nint clazz, string fieldName)
     {
-        if (clazz == IntPtr.Zero) return IntPtr.Zero;
+        if (clazz == nint.Zero) return nint.Zero;
 
         var field = il2cpp_class_get_field_from_name(clazz, fieldName);
-        if (field == IntPtr.Zero)
+        if (field == nint.Zero)
             Logger.Instance.LogError(
                 "Field {FieldName} was not found on class {ClassName}", fieldName, il2cpp_class_get_name_(clazz));
         return field;
     }
 
-    public static IntPtr GetIl2CppMethodByToken(IntPtr clazz, int token)
+    public static nint GetIl2CppMethodByToken(nint clazz, int token)
     {
-        if (clazz == IntPtr.Zero)
+        if (clazz == nint.Zero)
             return NativeStructUtils.GetMethodInfoForMissingMethod(token.ToString());
 
-        var iter = IntPtr.Zero;
-        IntPtr method;
-        while ((method = il2cpp_class_get_methods(clazz, ref iter)) != IntPtr.Zero)
+        var iter = nint.Zero;
+        nint method;
+        while ((method = il2cpp_class_get_methods(clazz, ref iter)) != nint.Zero)
             if (il2cpp_method_get_token(method) == token)
                 return method;
 
@@ -90,10 +303,10 @@ public static unsafe class IL2CPP
         return NativeStructUtils.GetMethodInfoForMissingMethod(className + "::" + token);
     }
 
-    public static IntPtr GetIl2CppMethod(IntPtr clazz, bool isGeneric, string methodName, string returnTypeName,
+    public static nint GetIl2CppMethod(nint clazz, bool isGeneric, string methodName, string returnTypeName,
         params string[] argTypes)
     {
-        if (clazz == IntPtr.Zero)
+        if (clazz == nint.Zero)
             return NativeStructUtils.GetMethodInfoForMissingMethod(methodName + "(" + string.Join(", ", argTypes) +
                                                                    ")");
 
@@ -105,10 +318,10 @@ public static unsafe class IL2CPP
         }
 
         var methodsSeen = 0;
-        var lastMethod = IntPtr.Zero;
-        var iter = IntPtr.Zero;
-        IntPtr method;
-        while ((method = il2cpp_class_get_methods(clazz, ref iter)) != IntPtr.Zero)
+        var lastMethod = nint.Zero;
+        var iter = nint.Zero;
+        nint method;
+        while ((method = il2cpp_class_get_methods(clazz, ref iter)) != nint.Zero)
         {
             if (il2cpp_method_get_name_(method) != methodName)
                 continue;
@@ -149,9 +362,11 @@ public static unsafe class IL2CPP
         if (methodsSeen == 1)
         {
             Logger.Instance.LogTrace(
-                "Method {ClassName}::{MethodName} was stubbed with a random matching method of the same name", className, methodName);
+                "Method {ClassName}::{MethodName} was stubbed with a random matching method of the same name",
+                className, methodName);
             Logger.Instance.LogTrace(
-                "Stubby return type/target: {LastMethod} / {ReturnTypeName}", il2cpp_type_get_name_(il2cpp_method_get_return_type(lastMethod)), returnTypeName);
+                "Stubby return type/target: {LastMethod} / {ReturnTypeName}",
+                il2cpp_type_get_name_(il2cpp_method_get_return_type(lastMethod)), returnTypeName);
             Logger.Instance.LogTrace("Stubby parameter types/targets follow:");
             for (var i = 0; i < argTypes.Length; i++)
             {
@@ -163,13 +378,14 @@ public static unsafe class IL2CPP
             return lastMethod;
         }
 
-        Logger.Instance.LogTrace("Unable to find method {ClassName}::{MethodName}; signature follows", className, methodName);
+        Logger.Instance.LogTrace("Unable to find method {ClassName}::{MethodName}; signature follows", className,
+            methodName);
         Logger.Instance.LogTrace("    return {ReturnTypeName}", returnTypeName);
         foreach (var argType in argTypes)
             Logger.Instance.LogTrace("    {ArgType}", argType);
         Logger.Instance.LogTrace("Available methods of this name follow:");
-        iter = IntPtr.Zero;
-        while ((method = il2cpp_class_get_methods(clazz, ref iter)) != IntPtr.Zero)
+        iter = nint.Zero;
+        while ((method = il2cpp_class_get_methods(clazz, ref iter)) != nint.Zero)
         {
             if (il2cpp_method_get_name_(method) != methodName)
                 continue;
@@ -192,9 +408,9 @@ public static unsafe class IL2CPP
                                                                string.Join(", ", argTypes) + ")");
     }
 
-    public static string? Il2CppStringToManaged(IntPtr il2CppString)
+    public static string? Il2CppStringToManaged(nint il2CppString)
     {
-        if (il2CppString == IntPtr.Zero) return null;
+        if (il2CppString == nint.Zero) return null;
 
         var length = il2cpp_string_length(il2CppString);
         var chars = il2cpp_string_chars(il2CppString);
@@ -202,9 +418,9 @@ public static unsafe class IL2CPP
         return new string(chars, 0, length);
     }
 
-    public static IntPtr ManagedStringToIl2Cpp(string? str)
+    public static nint ManagedStringToIl2Cpp(string? str)
     {
-        if (str == null) return IntPtr.Zero;
+        if (str == null) return nint.Zero;
 
         fixed (char* chars = str)
         {
@@ -212,22 +428,22 @@ public static unsafe class IL2CPP
         }
     }
 
-    public static IntPtr Il2CppObjectBaseToPtr(Il2CppObjectBase obj)
+    public static nint Il2CppObjectBaseToPtr(Il2CppObjectBase obj)
     {
-        return obj?.Pointer ?? IntPtr.Zero;
+        return obj?.Pointer ?? nint.Zero;
     }
 
-    public static IntPtr Il2CppObjectBaseToPtrNotNull(Il2CppObjectBase obj)
+    public static nint Il2CppObjectBaseToPtrNotNull(Il2CppObjectBase obj)
     {
         return obj?.Pointer ?? throw new NullReferenceException();
     }
 
-    public static IntPtr GetIl2CppNestedType(IntPtr enclosingType, string nestedTypeName)
+    public static nint GetIl2CppNestedType(nint enclosingType, string nestedTypeName)
     {
-        if (enclosingType == IntPtr.Zero) return IntPtr.Zero;
+        if (enclosingType == nint.Zero) return nint.Zero;
 
-        var iter = IntPtr.Zero;
-        IntPtr nestedTypePtr;
+        var iter = nint.Zero;
+        nint nestedTypePtr;
         if (il2cpp_class_is_inflated(enclosingType))
         {
             Logger.Instance.LogTrace("Original class was inflated, falling back to reflection");
@@ -235,14 +451,15 @@ public static unsafe class IL2CPP
             return RuntimeReflectionHelper.GetNestedTypeViaReflection(enclosingType, nestedTypeName);
         }
 
-        while ((nestedTypePtr = il2cpp_class_get_nested_types(enclosingType, ref iter)) != IntPtr.Zero)
+        while ((nestedTypePtr = il2cpp_class_get_nested_types(enclosingType, ref iter)) != nint.Zero)
             if (il2cpp_class_get_name_(nestedTypePtr) == nestedTypeName)
                 return nestedTypePtr;
 
         Logger.Instance.LogError(
-            "Nested type {NestedTypeName} on {EnclosingTypeName} not found!", nestedTypeName, il2cpp_class_get_name_(enclosingType));
+            "Nested type {NestedTypeName} on {EnclosingTypeName} not found!", nestedTypeName,
+            il2cpp_class_get_name_(enclosingType));
 
-        return IntPtr.Zero;
+        return nint.Zero;
     }
 
     public static void ThrowIfNull(object arg)
@@ -254,7 +471,7 @@ public static unsafe class IL2CPP
     public static T ResolveICall<T>(string signature) where T : Delegate
     {
         var icallPtr = il2cpp_resolve_icall(signature);
-        if (icallPtr == IntPtr.Zero)
+        if (icallPtr == nint.Zero)
         {
             Logger.Instance.LogTrace("ICall {Signature} not resolved", signature);
             return GenerateDelegateForMissingICall<T>(signature);
@@ -278,14 +495,14 @@ public static unsafe class IL2CPP
         return (T)trampoline.CreateDelegate(typeof(T));
     }
 
-    public static T? PointerToValueGeneric<T>(IntPtr objectPointer, bool isFieldPointer, bool valueTypeWouldBeBoxed)
+    public static T? PointerToValueGeneric<T>(nint objectPointer, bool isFieldPointer, bool valueTypeWouldBeBoxed)
     {
         if (isFieldPointer)
         {
             if (il2cpp_class_is_valuetype(Il2CppClassPointerStore<T>.NativeClassPtr))
                 objectPointer = il2cpp_value_box(Il2CppClassPointerStore<T>.NativeClassPtr, objectPointer);
             else
-                objectPointer = *(IntPtr*)objectPointer;
+                objectPointer = *(nint*)objectPointer;
         }
 
         if (!valueTypeWouldBeBoxed && il2cpp_class_is_valuetype(Il2CppClassPointerStore<T>.NativeClassPtr))
@@ -294,7 +511,7 @@ public static unsafe class IL2CPP
         if (typeof(T) == typeof(string))
             return (T)(object)Il2CppStringToManaged(objectPointer);
 
-        if (objectPointer == IntPtr.Zero)
+        if (objectPointer == nint.Zero)
             return default;
 
         if (typeof(T).IsValueType)
@@ -363,685 +580,1341 @@ public static unsafe class IL2CPP
 
     // this is called if there's no actual il2cpp_gc_wbarrier_set_field()
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void FieldWriteWbarrierStub(IntPtr obj, IntPtr targetAddress, IntPtr value)
+    public static void FieldWriteWbarrierStub(nint obj, nint targetAddress, nint value)
     {
         // ignore obj
-        *(IntPtr*)targetAddress = value;
+        *(nint*)targetAddress = value;
     }
 
-    // IL2CPP Functions
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_init(IntPtr domain_name);
+    // IL2CPP Functions (resolved via FusionInterop.get_il2cpp_api)
+    private static nint s_il2cpp_init;
+    private static nint s_il2cpp_init_utf16;
+    private static nint s_il2cpp_shutdown;
+    private static nint s_il2cpp_set_config_dir;
+    private static nint s_il2cpp_set_data_dir;
+    private static nint s_il2cpp_set_temp_dir;
+    private static nint s_il2cpp_set_commandline_arguments;
+    private static nint s_il2cpp_set_commandline_arguments_utf16;
+    private static nint s_il2cpp_set_config_utf16;
+    private static nint s_il2cpp_set_config;
+    private static nint s_il2cpp_set_memory_callbacks;
+    private static nint s_il2cpp_get_corlib;
+    private static nint s_il2cpp_add_internal_call;
+    private static nint s_il2cpp_resolve_icall;
+    private static nint s_il2cpp_alloc;
+    private static nint s_il2cpp_free;
+    private static nint s_il2cpp_array_class_get;
+    private static nint s_il2cpp_array_length;
+    private static nint s_il2cpp_array_get_byte_length;
+    private static nint s_il2cpp_array_new;
+    private static nint s_il2cpp_array_new_specific;
+    private static nint s_il2cpp_array_new_full;
+    private static nint s_il2cpp_bounded_array_class_get;
+    private static nint s_il2cpp_array_element_size;
+    private static nint s_il2cpp_assembly_get_image;
+    private static nint s_il2cpp_class_enum_basetype;
+    private static nint s_il2cpp_class_is_generic;
+    private static nint s_il2cpp_class_is_inflated;
+    private static nint s_il2cpp_class_is_assignable_from;
+    private static nint s_il2cpp_class_is_subclass_of;
+    private static nint s_il2cpp_class_has_parent;
+    private static nint s_il2cpp_class_from_il2cpp_type;
+    private static nint s_il2cpp_class_from_name;
+    private static nint s_il2cpp_class_from_system_type;
+    private static nint s_il2cpp_class_get_element_class;
+    private static nint s_il2cpp_class_get_events;
+    private static nint s_il2cpp_class_get_fields;
+    private static nint s_il2cpp_class_get_nested_types;
+    private static nint s_il2cpp_class_get_interfaces;
+    private static nint s_il2cpp_class_get_properties;
+    private static nint s_il2cpp_class_get_property_from_name;
+    private static nint s_il2cpp_class_get_field_from_name;
+    private static nint s_il2cpp_class_get_methods;
+    private static nint s_il2cpp_class_get_method_from_name;
+    private static nint s_il2cpp_class_get_name;
+    private static nint s_il2cpp_class_get_namespace;
+    private static nint s_il2cpp_class_get_parent;
+    private static nint s_il2cpp_class_get_declaring_type;
+    private static nint s_il2cpp_class_instance_size;
+    private static nint s_il2cpp_class_num_fields;
+    private static nint s_il2cpp_class_is_valuetype;
+    private static nint s_il2cpp_class_value_size;
+    private static nint s_il2cpp_class_is_blittable;
+    private static nint s_il2cpp_class_get_flags;
+    private static nint s_il2cpp_class_is_abstract;
+    private static nint s_il2cpp_class_is_interface;
+    private static nint s_il2cpp_class_array_element_size;
+    private static nint s_il2cpp_class_from_type;
+    private static nint s_il2cpp_class_get_type;
+    private static nint s_il2cpp_class_get_type_token;
+    private static nint s_il2cpp_class_has_attribute;
+    private static nint s_il2cpp_class_has_references;
+    private static nint s_il2cpp_class_is_enum;
+    private static nint s_il2cpp_class_get_image;
+    private static nint s_il2cpp_class_get_assemblyname;
+    private static nint s_il2cpp_class_get_rank;
+    private static nint s_il2cpp_class_get_bitmap_size;
+    private static nint s_il2cpp_class_get_bitmap;
+    private static nint s_il2cpp_stats_dump_to_file;
+    private static nint s_il2cpp_domain_get;
+    private static nint s_il2cpp_domain_assembly_open;
+    private static nint s_il2cpp_domain_get_assemblies;
+    private static nint s_il2cpp_exception_from_name_msg;
+    private static nint s_il2cpp_get_exception_argument_null;
+    private static nint s_il2cpp_format_exception;
+    private static nint s_il2cpp_format_stack_trace;
+    private static nint s_il2cpp_unhandled_exception;
+    private static nint s_il2cpp_field_get_flags;
+    private static nint s_il2cpp_field_get_name;
+    private static nint s_il2cpp_field_get_parent;
+    private static nint s_il2cpp_field_get_offset;
+    private static nint s_il2cpp_field_get_type;
+    private static nint s_il2cpp_field_get_value;
+    private static nint s_il2cpp_field_get_value_object;
+    private static nint s_il2cpp_field_has_attribute;
+    private static nint s_il2cpp_field_set_value;
+    private static nint s_il2cpp_field_static_get_value;
+    private static nint s_il2cpp_field_static_set_value;
+    private static nint s_il2cpp_field_set_value_object;
+    private static nint s_il2cpp_gc_collect;
+    private static nint s_il2cpp_gc_collect_a_little;
+    private static nint s_il2cpp_gc_disable;
+    private static nint s_il2cpp_gc_enable;
+    private static nint s_il2cpp_gc_is_disabled;
+    private static nint s_il2cpp_gc_get_used_size;
+    private static nint s_il2cpp_gc_get_heap_size;
+    private static nint s_il2cpp_gc_wbarrier_set_field;
+    private static nint s_il2cpp_gchandle_new;
+    private static nint s_il2cpp_gchandle_new_weakref;
+    private static nint s_il2cpp_gchandle_get_target;
+    private static nint s_il2cpp_gchandle_free;
+    private static nint s_il2cpp_unity_liveness_calculation_begin;
+    private static nint s_il2cpp_unity_liveness_calculation_end;
+    private static nint s_il2cpp_unity_liveness_calculation_from_root;
+    private static nint s_il2cpp_unity_liveness_calculation_from_statics;
+    private static nint s_il2cpp_method_get_return_type;
+    private static nint s_il2cpp_method_get_declaring_type;
+    private static nint s_il2cpp_method_get_name;
+    private static nint s__il2cpp_method_get_from_reflection;
+    private static nint s_il2cpp_method_get_object;
+    private static nint s_il2cpp_method_is_generic;
+    private static nint s_il2cpp_method_is_inflated;
+    private static nint s_il2cpp_method_is_instance;
+    private static nint s_il2cpp_method_get_param_count;
+    private static nint s_il2cpp_method_get_param;
+    private static nint s_il2cpp_method_get_class;
+    private static nint s_il2cpp_method_has_attribute;
+    private static nint s_il2cpp_method_get_flags;
+    private static nint s_il2cpp_method_get_token;
+    private static nint s_il2cpp_method_get_param_name;
+    private static nint s_il2cpp_profiler_install;
+    private static nint s_il2cpp_profiler_install_enter_leave;
+    private static nint s_il2cpp_profiler_install_allocation;
+    private static nint s_il2cpp_profiler_install_gc;
+    private static nint s_il2cpp_profiler_install_fileio;
+    private static nint s_il2cpp_profiler_install_thread;
+    private static nint s_il2cpp_property_get_flags;
+    private static nint s_il2cpp_property_get_get_method;
+    private static nint s_il2cpp_property_get_set_method;
+    private static nint s_il2cpp_property_get_name;
+    private static nint s_il2cpp_property_get_parent;
+    private static nint s_il2cpp_object_get_class;
+    private static nint s_il2cpp_object_get_size;
+    private static nint s_il2cpp_object_get_virtual_method;
+    private static nint s_il2cpp_object_new;
+    private static nint s_il2cpp_object_unbox;
+    private static nint s_il2cpp_value_box;
+    private static nint s_il2cpp_monitor_enter;
+    private static nint s_il2cpp_monitor_try_enter;
+    private static nint s_il2cpp_monitor_exit;
+    private static nint s_il2cpp_monitor_pulse;
+    private static nint s_il2cpp_monitor_pulse_all;
+    private static nint s_il2cpp_monitor_wait;
+    private static nint s_il2cpp_monitor_try_wait;
+    private static nint s_il2cpp_runtime_invoke;
+    private static nint s_il2cpp_runtime_invoke_convert_args;
+    private static nint s_il2cpp_runtime_class_init;
+    private static nint s_il2cpp_runtime_object_init;
+    private static nint s_il2cpp_runtime_object_init_exception;
+    private static nint s_il2cpp_string_length;
+    private static nint s_il2cpp_string_chars;
+    private static nint s_il2cpp_string_new;
+    private static nint s_il2cpp_string_new_len;
+    private static nint s_il2cpp_string_new_utf16;
+    private static nint s_il2cpp_string_new_wrapper;
+    private static nint s_il2cpp_string_intern;
+    private static nint s_il2cpp_string_is_interned;
+    private static nint s_il2cpp_thread_current;
+    private static nint s_il2cpp_thread_attach;
+    private static nint s_il2cpp_thread_detach;
+    private static nint s_il2cpp_thread_get_all_attached_threads;
+    private static nint s_il2cpp_is_vm_thread;
+    private static nint s_il2cpp_current_thread_walk_frame_stack;
+    private static nint s_il2cpp_thread_walk_frame_stack;
+    private static nint s_il2cpp_current_thread_get_top_frame;
+    private static nint s_il2cpp_thread_get_top_frame;
+    private static nint s_il2cpp_current_thread_get_frame_at;
+    private static nint s_il2cpp_thread_get_frame_at;
+    private static nint s_il2cpp_current_thread_get_stack_depth;
+    private static nint s_il2cpp_thread_get_stack_depth;
+    private static nint s_il2cpp_type_get_object;
+    private static nint s_il2cpp_type_get_type;
+    private static nint s_il2cpp_type_get_class_or_element_class;
+    private static nint s_il2cpp_type_get_name;
+    private static nint s_il2cpp_type_is_byref;
+    private static nint s_il2cpp_type_get_attrs;
+    private static nint s_il2cpp_type_equals;
+    private static nint s_il2cpp_type_get_assembly_qualified_name;
+    private static nint s_il2cpp_image_get_assembly;
+    private static nint s_il2cpp_image_get_name;
+    private static nint s_il2cpp_image_get_filename;
+    private static nint s_il2cpp_image_get_entry_point;
+    private static nint s_il2cpp_image_get_class_count;
+    private static nint s_il2cpp_image_get_class;
+    private static nint s_il2cpp_capture_memory_snapshot;
+    private static nint s_il2cpp_free_captured_memory_snapshot;
+    private static nint s_il2cpp_set_find_plugin_callback;
+    private static nint s_il2cpp_register_log_callback;
+    private static nint s_il2cpp_debugger_set_agent_options;
+    private static nint s_il2cpp_is_debugger_attached;
+    private static nint s_il2cpp_unity_install_unitytls_interface;
+    private static nint s_il2cpp_custom_attrs_from_class;
+    private static nint s_il2cpp_custom_attrs_from_method;
+    private static nint s_il2cpp_custom_attrs_get_attr;
+    private static nint s_il2cpp_custom_attrs_has_attr;
+    private static nint s_il2cpp_custom_attrs_construct;
+    private static nint s_il2cpp_custom_attrs_free;
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_init_utf16(IntPtr domain_name);
+    public static void il2cpp_init(nint domain_name)
+    {
+        ((delegate* unmanaged[Cdecl]<nint, void>)s_il2cpp_init)(domain_name);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_shutdown();
+    public static void il2cpp_init_utf16(nint domain_name)
+    {
+        ((delegate* unmanaged[Cdecl]<nint, void>)s_il2cpp_init_utf16)(domain_name);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_set_config_dir(IntPtr config_path);
+    public static void il2cpp_shutdown()
+    {
+        ((delegate* unmanaged[Cdecl]<void>)s_il2cpp_shutdown)();
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_set_data_dir(IntPtr data_path);
+    public static void il2cpp_set_config_dir(nint config_path)
+    {
+        ((delegate* unmanaged[Cdecl]<nint, void>)s_il2cpp_set_config_dir)(config_path);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_set_temp_dir(IntPtr temp_path);
+    public static void il2cpp_set_data_dir(nint data_path)
+    {
+        ((delegate* unmanaged[Cdecl]<nint, void>)s_il2cpp_set_data_dir)(data_path);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_set_commandline_arguments(int argc, IntPtr argv, IntPtr basedir);
+    public static void il2cpp_set_temp_dir(nint temp_path)
+    {
+        ((delegate* unmanaged[Cdecl]<nint, void>)s_il2cpp_set_temp_dir)(temp_path);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_set_commandline_arguments_utf16(int argc, IntPtr argv, IntPtr basedir);
+    public static void il2cpp_set_commandline_arguments(int argc, nint argv, nint basedir)
+    {
+        ((delegate* unmanaged[Cdecl]<int, nint, nint, void>)s_il2cpp_set_commandline_arguments)(argc, argv,
+            basedir);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_set_config_utf16(IntPtr executablePath);
+    public static void il2cpp_set_commandline_arguments_utf16(int argc, nint argv, nint basedir)
+    {
+        ((delegate* unmanaged[Cdecl]<int, nint, nint, void>)s_il2cpp_set_commandline_arguments_utf16)(argc, argv,
+            basedir);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_set_config(IntPtr executablePath);
+    public static void il2cpp_set_config_utf16(nint executablePath)
+    {
+        ((delegate* unmanaged[Cdecl]<nint, void>)s_il2cpp_set_config_utf16)(executablePath);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_set_memory_callbacks(IntPtr callbacks);
+    public static void il2cpp_set_config(nint executablePath)
+    {
+        ((delegate* unmanaged[Cdecl]<nint, void>)s_il2cpp_set_config)(executablePath);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_get_corlib();
+    public static void il2cpp_set_memory_callbacks(nint callbacks)
+    {
+        ((delegate* unmanaged[Cdecl]<nint, void>)s_il2cpp_set_memory_callbacks)(callbacks);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_add_internal_call(IntPtr name, IntPtr method);
+    public static nint il2cpp_get_corlib()
+    {
+        return ((delegate* unmanaged[Cdecl]<nint>)s_il2cpp_get_corlib)();
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_resolve_icall([MarshalAs(UnmanagedType.LPStr)] string name);
+    public static void il2cpp_add_internal_call(nint name, nint method)
+    {
+        ((delegate* unmanaged[Cdecl]<nint, nint, void>)s_il2cpp_add_internal_call)(name, method);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_alloc(uint size);
+    public static nint il2cpp_resolve_icall(string name)
+    {
+        nint __m_name = Marshal.StringToHGlobalAnsi(name);
+        try
+        {
+            return ((delegate* unmanaged[Cdecl]<byte*, nint>)s_il2cpp_resolve_icall)((byte*)__m_name);
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(__m_name);
+        }
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_free(IntPtr ptr);
+    public static nint il2cpp_alloc(uint size)
+    {
+        return ((delegate* unmanaged[Cdecl]<uint, nint>)s_il2cpp_alloc)(size);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_array_class_get(IntPtr element_class, uint rank);
+    public static void il2cpp_free(nint ptr)
+    {
+        ((delegate* unmanaged[Cdecl]<nint, void>)s_il2cpp_free)(ptr);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern uint il2cpp_array_length(IntPtr array);
+    public static nint il2cpp_array_class_get(nint element_class, uint rank)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, uint, nint>)s_il2cpp_array_class_get)(element_class, rank);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern uint il2cpp_array_get_byte_length(IntPtr array);
+    public static uint il2cpp_array_length(nint array)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, uint>)s_il2cpp_array_length)(array);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_array_new(IntPtr elementTypeInfo, ulong length);
+    public static uint il2cpp_array_get_byte_length(nint array)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, uint>)s_il2cpp_array_get_byte_length)(array);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_array_new_specific(IntPtr arrayTypeInfo, ulong length);
+    public static nint il2cpp_array_new(nint elementTypeInfo, ulong length)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, ulong, nint>)s_il2cpp_array_new)(elementTypeInfo, length);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_array_new_full(IntPtr array_class, ref ulong lengths, ref ulong lower_bounds);
+    public static nint il2cpp_array_new_specific(nint arrayTypeInfo, ulong length)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, ulong, nint>)s_il2cpp_array_new_specific)(arrayTypeInfo, length);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_bounded_array_class_get(IntPtr element_class, uint rank,
-        [MarshalAs(UnmanagedType.I1)] bool bounded);
+    public static nint il2cpp_array_new_full(nint array_class, ref ulong lengths, ref ulong lower_bounds)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, ref ulong, ref ulong, nint>)s_il2cpp_array_new_full)(array_class,
+            ref lengths, ref lower_bounds);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern int il2cpp_array_element_size(IntPtr array_class);
+    public static nint il2cpp_bounded_array_class_get(nint element_class, uint rank, bool bounded)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, uint, byte, nint>)s_il2cpp_bounded_array_class_get)(element_class,
+            rank, (byte)(bounded ? 1 : 0));
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_assembly_get_image(IntPtr assembly);
+    public static int il2cpp_array_element_size(nint array_class)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, int>)s_il2cpp_array_element_size)(array_class);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_class_enum_basetype(IntPtr klass);
+    public static nint il2cpp_assembly_get_image(nint assembly)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint>)s_il2cpp_assembly_get_image)(assembly);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    [return: MarshalAs(UnmanagedType.I1)]
-    public static extern bool il2cpp_class_is_generic(IntPtr klass);
+    public static nint il2cpp_class_enum_basetype(nint klass)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint>)s_il2cpp_class_enum_basetype)(klass);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    [return: MarshalAs(UnmanagedType.I1)]
-    public static extern bool il2cpp_class_is_inflated(IntPtr klass);
+    public static bool il2cpp_class_is_generic(nint klass)
+    {
+        return (((delegate* unmanaged[Cdecl]<nint, byte>)s_il2cpp_class_is_generic)(klass) != 0);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    [return: MarshalAs(UnmanagedType.I1)]
-    public static extern bool il2cpp_class_is_assignable_from(IntPtr klass, IntPtr oklass);
+    public static bool il2cpp_class_is_inflated(nint klass)
+    {
+        return (((delegate* unmanaged[Cdecl]<nint, byte>)s_il2cpp_class_is_inflated)(klass) != 0);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    [return: MarshalAs(UnmanagedType.I1)]
-    public static extern bool il2cpp_class_is_subclass_of(IntPtr klass, IntPtr klassc,
-        [MarshalAs(UnmanagedType.I1)] bool check_interfaces);
+    public static bool il2cpp_class_is_assignable_from(nint klass, nint oklass)
+    {
+        return (((delegate* unmanaged[Cdecl]<nint, nint, byte>)s_il2cpp_class_is_assignable_from)(klass, oklass) !=
+                0);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    [return: MarshalAs(UnmanagedType.I1)]
-    public static extern bool il2cpp_class_has_parent(IntPtr klass, IntPtr klassc);
+    public static bool il2cpp_class_is_subclass_of(nint klass, nint klassc, bool check_interfaces)
+    {
+        return (((delegate* unmanaged[Cdecl]<nint, nint, byte, byte>)s_il2cpp_class_is_subclass_of)(klass, klassc,
+            (byte)(check_interfaces ? 1 : 0)) != 0);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_class_from_il2cpp_type(IntPtr type);
+    public static bool il2cpp_class_has_parent(nint klass, nint klassc)
+    {
+        return (((delegate* unmanaged[Cdecl]<nint, nint, byte>)s_il2cpp_class_has_parent)(klass, klassc) != 0);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_class_from_name(IntPtr image, [MarshalAs(UnmanagedType.LPUTF8Str)] string namespaze,
-        [MarshalAs(UnmanagedType.LPUTF8Str)] string name);
+    public static nint il2cpp_class_from_il2cpp_type(nint type)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint>)s_il2cpp_class_from_il2cpp_type)(type);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_class_from_system_type(IntPtr type);
+    public static nint il2cpp_class_from_name(nint image, string namespaze, string name)
+    {
+        nint __m_namespaze = Marshal.StringToCoTaskMemUTF8(namespaze);
+        try
+        {
+            nint __m_name = Marshal.StringToCoTaskMemUTF8(name);
+            try
+            {
+                return ((delegate* unmanaged[Cdecl]<nint, byte*, byte*, nint>)s_il2cpp_class_from_name)(image,
+                    (byte*)__m_namespaze, (byte*)__m_name);
+            }
+            finally
+            {
+                Marshal.FreeCoTaskMem(__m_name);
+            }
+        }
+        finally
+        {
+            Marshal.FreeCoTaskMem(__m_namespaze);
+        }
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_class_get_element_class(IntPtr klass);
+    public static nint il2cpp_class_from_system_type(nint type)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint>)s_il2cpp_class_from_system_type)(type);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_class_get_events(IntPtr klass, ref IntPtr iter);
+    public static nint il2cpp_class_get_element_class(nint klass)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint>)s_il2cpp_class_get_element_class)(klass);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_class_get_fields(IntPtr klass, ref IntPtr iter);
+    public static nint il2cpp_class_get_events(nint klass, ref nint iter)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, ref nint, nint>)s_il2cpp_class_get_events)(klass, ref iter);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_class_get_nested_types(IntPtr klass, ref IntPtr iter);
+    public static nint il2cpp_class_get_fields(nint klass, ref nint iter)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, ref nint, nint>)s_il2cpp_class_get_fields)(klass, ref iter);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_class_get_interfaces(IntPtr klass, ref IntPtr iter);
+    public static nint il2cpp_class_get_nested_types(nint klass, ref nint iter)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, ref nint, nint>)s_il2cpp_class_get_nested_types)(klass,
+            ref iter);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_class_get_properties(IntPtr klass, ref IntPtr iter);
+    public static nint il2cpp_class_get_interfaces(nint klass, ref nint iter)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, ref nint, nint>)s_il2cpp_class_get_interfaces)(klass, ref iter);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_class_get_property_from_name(IntPtr klass, IntPtr name);
+    public static nint il2cpp_class_get_properties(nint klass, ref nint iter)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, ref nint, nint>)s_il2cpp_class_get_properties)(klass, ref iter);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_class_get_field_from_name(IntPtr klass,
-        [MarshalAs(UnmanagedType.LPUTF8Str)] string name);
+    public static nint il2cpp_class_get_property_from_name(nint klass, nint name)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint, nint>)s_il2cpp_class_get_property_from_name)(klass, name);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_class_get_methods(IntPtr klass, ref IntPtr iter);
+    public static nint il2cpp_class_get_field_from_name(nint klass, string name)
+    {
+        nint __m_name = Marshal.StringToCoTaskMemUTF8(name);
+        try
+        {
+            return ((delegate* unmanaged[Cdecl]<nint, byte*, nint>)s_il2cpp_class_get_field_from_name)(klass,
+                (byte*)__m_name);
+        }
+        finally
+        {
+            Marshal.FreeCoTaskMem(__m_name);
+        }
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_class_get_method_from_name(IntPtr klass,
-        [MarshalAs(UnmanagedType.LPUTF8Str)] string name, int argsCount);
+    public static nint il2cpp_class_get_methods(nint klass, ref nint iter)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, ref nint, nint>)s_il2cpp_class_get_methods)(klass, ref iter);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern nint il2cpp_class_get_name(IntPtr klass);
+    public static nint il2cpp_class_get_method_from_name(nint klass, string name, int argsCount)
+    {
+        nint __m_name = Marshal.StringToCoTaskMemUTF8(name);
+        try
+        {
+            return ((delegate* unmanaged[Cdecl]<nint, byte*, int, nint>)s_il2cpp_class_get_method_from_name)(klass,
+                (byte*)__m_name, argsCount);
+        }
+        finally
+        {
+            Marshal.FreeCoTaskMem(__m_name);
+        }
+    }
 
-    public static string? il2cpp_class_get_name_(IntPtr klass)
+    public static nint il2cpp_class_get_name(nint klass)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint>)s_il2cpp_class_get_name)(klass);
+    }
+
+    public static string? il2cpp_class_get_name_(nint klass)
         => Marshal.PtrToStringUTF8(il2cpp_class_get_name(klass));
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern nint il2cpp_class_get_namespace(IntPtr klass);
+    public static nint il2cpp_class_get_namespace(nint klass)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint>)s_il2cpp_class_get_namespace)(klass);
+    }
 
-    public static string? il2cpp_class_get_namespace_(IntPtr klass)
+    public static string? il2cpp_class_get_namespace_(nint klass)
         => Marshal.PtrToStringUTF8(il2cpp_class_get_namespace(klass));
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_class_get_parent(IntPtr klass);
+    public static nint il2cpp_class_get_parent(nint klass)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint>)s_il2cpp_class_get_parent)(klass);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_class_get_declaring_type(IntPtr klass);
+    public static nint il2cpp_class_get_declaring_type(nint klass)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint>)s_il2cpp_class_get_declaring_type)(klass);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern int il2cpp_class_instance_size(IntPtr klass);
+    public static int il2cpp_class_instance_size(nint klass)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, int>)s_il2cpp_class_instance_size)(klass);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern uint il2cpp_class_num_fields(IntPtr enumKlass);
+    public static uint il2cpp_class_num_fields(nint enumKlass)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, uint>)s_il2cpp_class_num_fields)(enumKlass);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    [return: MarshalAs(UnmanagedType.I1)]
-    public static extern bool il2cpp_class_is_valuetype(IntPtr klass);
+    public static bool il2cpp_class_is_valuetype(nint klass)
+    {
+        return (((delegate* unmanaged[Cdecl]<nint, byte>)s_il2cpp_class_is_valuetype)(klass) != 0);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern int il2cpp_class_value_size(IntPtr klass, ref uint align);
+    public static int il2cpp_class_value_size(nint klass, ref uint align)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, ref uint, int>)s_il2cpp_class_value_size)(klass, ref align);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    [return: MarshalAs(UnmanagedType.I1)]
-    public static extern bool il2cpp_class_is_blittable(IntPtr klass);
+    public static bool il2cpp_class_is_blittable(nint klass)
+    {
+        return (((delegate* unmanaged[Cdecl]<nint, byte>)s_il2cpp_class_is_blittable)(klass) != 0);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern int il2cpp_class_get_flags(IntPtr klass);
+    public static int il2cpp_class_get_flags(nint klass)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, int>)s_il2cpp_class_get_flags)(klass);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    [return: MarshalAs(UnmanagedType.I1)]
-    public static extern bool il2cpp_class_is_abstract(IntPtr klass);
+    public static bool il2cpp_class_is_abstract(nint klass)
+    {
+        return (((delegate* unmanaged[Cdecl]<nint, byte>)s_il2cpp_class_is_abstract)(klass) != 0);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    [return: MarshalAs(UnmanagedType.I1)]
-    public static extern bool il2cpp_class_is_interface(IntPtr klass);
+    public static bool il2cpp_class_is_interface(nint klass)
+    {
+        return (((delegate* unmanaged[Cdecl]<nint, byte>)s_il2cpp_class_is_interface)(klass) != 0);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern int il2cpp_class_array_element_size(IntPtr klass);
+    public static int il2cpp_class_array_element_size(nint klass)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, int>)s_il2cpp_class_array_element_size)(klass);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_class_from_type(IntPtr type);
+    public static nint il2cpp_class_from_type(nint type)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint>)s_il2cpp_class_from_type)(type);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_class_get_type(IntPtr klass);
+    public static nint il2cpp_class_get_type(nint klass)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint>)s_il2cpp_class_get_type)(klass);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern uint il2cpp_class_get_type_token(IntPtr klass);
+    public static uint il2cpp_class_get_type_token(nint klass)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, uint>)s_il2cpp_class_get_type_token)(klass);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    [return: MarshalAs(UnmanagedType.I1)]
-    public static extern bool il2cpp_class_has_attribute(IntPtr klass, IntPtr attr_class);
+    public static bool il2cpp_class_has_attribute(nint klass, nint attr_class)
+    {
+        return (((delegate* unmanaged[Cdecl]<nint, nint, byte>)s_il2cpp_class_has_attribute)(klass, attr_class) !=
+                0);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    [return: MarshalAs(UnmanagedType.I1)]
-    public static extern bool il2cpp_class_has_references(IntPtr klass);
+    public static bool il2cpp_class_has_references(nint klass)
+    {
+        return (((delegate* unmanaged[Cdecl]<nint, byte>)s_il2cpp_class_has_references)(klass) != 0);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    [return: MarshalAs(UnmanagedType.I1)]
-    public static extern bool il2cpp_class_is_enum(IntPtr klass);
+    public static bool il2cpp_class_is_enum(nint klass)
+    {
+        return (((delegate* unmanaged[Cdecl]<nint, byte>)s_il2cpp_class_is_enum)(klass) != 0);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_class_get_image(IntPtr klass);
+    public static nint il2cpp_class_get_image(nint klass)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint>)s_il2cpp_class_get_image)(klass);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern nint il2cpp_class_get_assemblyname(IntPtr klass);
+    public static nint il2cpp_class_get_assemblyname(nint klass)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint>)s_il2cpp_class_get_assemblyname)(klass);
+    }
 
-    public static string? il2cpp_class_get_assemblyname_(IntPtr klass)
+    public static string? il2cpp_class_get_assemblyname_(nint klass)
         => Marshal.PtrToStringUTF8(il2cpp_class_get_assemblyname(klass));
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern int il2cpp_class_get_rank(IntPtr klass);
+    public static int il2cpp_class_get_rank(nint klass)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, int>)s_il2cpp_class_get_rank)(klass);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern uint il2cpp_class_get_bitmap_size(IntPtr klass);
+    public static uint il2cpp_class_get_bitmap_size(nint klass)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, uint>)s_il2cpp_class_get_bitmap_size)(klass);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_class_get_bitmap(IntPtr klass, ref uint bitmap);
+    public static void il2cpp_class_get_bitmap(nint klass, ref uint bitmap)
+    {
+        ((delegate* unmanaged[Cdecl]<nint, ref uint, void>)s_il2cpp_class_get_bitmap)(klass, ref bitmap);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    [return: MarshalAs(UnmanagedType.I1)]
-    public static extern bool il2cpp_stats_dump_to_file(IntPtr path);
+    public static bool il2cpp_stats_dump_to_file(nint path)
+    {
+        return (((delegate* unmanaged[Cdecl]<nint, byte>)s_il2cpp_stats_dump_to_file)(path) != 0);
+    }
 
-    //[DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    //public extern static ulong il2cpp_stats_get_value(IL2CPP_Stat stat);
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_domain_get();
+    public static nint il2cpp_domain_get()
+    {
+        return ((delegate* unmanaged[Cdecl]<nint>)s_il2cpp_domain_get)();
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_domain_assembly_open(IntPtr domain, IntPtr name);
+    public static nint il2cpp_domain_assembly_open(nint domain, nint name)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint, nint>)s_il2cpp_domain_assembly_open)(domain, name);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr* il2cpp_domain_get_assemblies(IntPtr domain, ref uint size);
+    public static nint* il2cpp_domain_get_assemblies(nint domain, ref uint size)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, ref uint, nint*>)s_il2cpp_domain_get_assemblies)(domain,
+            ref size);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr
-        il2cpp_exception_from_name_msg(IntPtr image, IntPtr name_space, IntPtr name, IntPtr msg);
+    public static nint il2cpp_exception_from_name_msg(nint image, nint name_space, nint name, nint msg)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint, nint, nint, nint>)s_il2cpp_exception_from_name_msg)(
+            image, name_space, name, msg);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_get_exception_argument_null(IntPtr arg);
+    public static nint il2cpp_get_exception_argument_null(nint arg)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint>)s_il2cpp_get_exception_argument_null)(arg);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_format_exception(IntPtr ex, void* message, int message_size);
+    public static void il2cpp_format_exception(nint ex, void* message, int message_size)
+    {
+        ((delegate* unmanaged[Cdecl]<nint, void*, int, void>)s_il2cpp_format_exception)(ex, message, message_size);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_format_stack_trace(IntPtr ex, void* output, int output_size);
+    public static void il2cpp_format_stack_trace(nint ex, void* output, int output_size)
+    {
+        ((delegate* unmanaged[Cdecl]<nint, void*, int, void>)s_il2cpp_format_stack_trace)(ex, output, output_size);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_unhandled_exception(IntPtr ex);
+    public static void il2cpp_unhandled_exception(nint ex)
+    {
+        ((delegate* unmanaged[Cdecl]<nint, void>)s_il2cpp_unhandled_exception)(ex);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern int il2cpp_field_get_flags(IntPtr field);
+    public static int il2cpp_field_get_flags(nint field)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, int>)s_il2cpp_field_get_flags)(field);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern nint il2cpp_field_get_name(IntPtr field);
+    public static nint il2cpp_field_get_name(nint field)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint>)s_il2cpp_field_get_name)(field);
+    }
 
-    public static string? il2cpp_field_get_name_(IntPtr field)
+    public static string? il2cpp_field_get_name_(nint field)
         => Marshal.PtrToStringUTF8(il2cpp_field_get_name(field));
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_field_get_parent(IntPtr field);
+    public static nint il2cpp_field_get_parent(nint field)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint>)s_il2cpp_field_get_parent)(field);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern uint il2cpp_field_get_offset(IntPtr field);
+    public static uint il2cpp_field_get_offset(nint field)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, uint>)s_il2cpp_field_get_offset)(field);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_field_get_type(IntPtr field);
+    public static nint il2cpp_field_get_type(nint field)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint>)s_il2cpp_field_get_type)(field);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_field_get_value(IntPtr obj, IntPtr field, void* value);
+    public static void il2cpp_field_get_value(nint obj, nint field, void* value)
+    {
+        ((delegate* unmanaged[Cdecl]<nint, nint, void*, void>)s_il2cpp_field_get_value)(obj, field, value);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_field_get_value_object(IntPtr field, IntPtr obj);
+    public static nint il2cpp_field_get_value_object(nint field, nint obj)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint, nint>)s_il2cpp_field_get_value_object)(field, obj);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    [return: MarshalAs(UnmanagedType.I1)]
-    public static extern bool il2cpp_field_has_attribute(IntPtr field, IntPtr attr_class);
+    public static bool il2cpp_field_has_attribute(nint field, nint attr_class)
+    {
+        return (((delegate* unmanaged[Cdecl]<nint, nint, byte>)s_il2cpp_field_has_attribute)(field, attr_class) !=
+                0);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_field_set_value(IntPtr obj, IntPtr field, void* value);
+    public static void il2cpp_field_set_value(nint obj, nint field, void* value)
+    {
+        ((delegate* unmanaged[Cdecl]<nint, nint, void*, void>)s_il2cpp_field_set_value)(obj, field, value);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_field_static_get_value(IntPtr field, void* value);
+    public static void il2cpp_field_static_get_value(nint field, void* value)
+    {
+        ((delegate* unmanaged[Cdecl]<nint, void*, void>)s_il2cpp_field_static_get_value)(field, value);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_field_static_set_value(IntPtr field, void* value);
+    public static void il2cpp_field_static_set_value(nint field, void* value)
+    {
+        ((delegate* unmanaged[Cdecl]<nint, void*, void>)s_il2cpp_field_static_set_value)(field, value);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_field_set_value_object(IntPtr instance, IntPtr field, IntPtr value);
+    public static void il2cpp_field_set_value_object(nint instance, nint field, nint value)
+    {
+        ((delegate* unmanaged[Cdecl]<nint, nint, nint, void>)s_il2cpp_field_set_value_object)(instance, field,
+            value);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_gc_collect(int maxGenerations);
+    public static void il2cpp_gc_collect(int maxGenerations)
+    {
+        ((delegate* unmanaged[Cdecl]<int, void>)s_il2cpp_gc_collect)(maxGenerations);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern int il2cpp_gc_collect_a_little();
+    public static int il2cpp_gc_collect_a_little()
+    {
+        return ((delegate* unmanaged[Cdecl]<int>)s_il2cpp_gc_collect_a_little)();
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_gc_disable();
+    public static void il2cpp_gc_disable()
+    {
+        ((delegate* unmanaged[Cdecl]<void>)s_il2cpp_gc_disable)();
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_gc_enable();
+    public static void il2cpp_gc_enable()
+    {
+        ((delegate* unmanaged[Cdecl]<void>)s_il2cpp_gc_enable)();
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    [return: MarshalAs(UnmanagedType.I1)]
-    public static extern bool il2cpp_gc_is_disabled();
+    public static bool il2cpp_gc_is_disabled()
+    {
+        return (((delegate* unmanaged[Cdecl]<byte>)s_il2cpp_gc_is_disabled)() != 0);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern long il2cpp_gc_get_used_size();
+    public static long il2cpp_gc_get_used_size()
+    {
+        return ((delegate* unmanaged[Cdecl]<long>)s_il2cpp_gc_get_used_size)();
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern long il2cpp_gc_get_heap_size();
+    public static long il2cpp_gc_get_heap_size()
+    {
+        return ((delegate* unmanaged[Cdecl]<long>)s_il2cpp_gc_get_heap_size)();
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_gc_wbarrier_set_field(IntPtr obj, IntPtr targetAddress, IntPtr gcObj);
+    public static void il2cpp_gc_wbarrier_set_field(nint obj, nint targetAddress, nint gcObj)
+    {
+        ((delegate* unmanaged[Cdecl]<nint, nint, nint, void>)s_il2cpp_gc_wbarrier_set_field)(obj, targetAddress,
+            gcObj);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern nint il2cpp_gchandle_new(IntPtr obj, [MarshalAs(UnmanagedType.I1)] bool pinned);
+    public static nint il2cpp_gchandle_new(nint obj, bool pinned)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, byte, nint>)s_il2cpp_gchandle_new)(obj, (byte)(pinned ? 1 : 0));
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern nint il2cpp_gchandle_new_weakref(IntPtr obj,
-        [MarshalAs(UnmanagedType.I1)] bool track_resurrection);
+    public static nint il2cpp_gchandle_new_weakref(nint obj, bool track_resurrection)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, byte, nint>)s_il2cpp_gchandle_new_weakref)(obj,
+            (byte)(track_resurrection ? 1 : 0));
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_gchandle_get_target(nint gchandle);
+    public static nint il2cpp_gchandle_get_target(nint gchandle)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint>)s_il2cpp_gchandle_get_target)(gchandle);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_gchandle_free(nint gchandle);
+    public static void il2cpp_gchandle_free(nint gchandle)
+    {
+        ((delegate* unmanaged[Cdecl]<nint, void>)s_il2cpp_gchandle_free)(gchandle);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_unity_liveness_calculation_begin(IntPtr filter, int max_object_count,
-        IntPtr callback, IntPtr userdata, IntPtr onWorldStarted, IntPtr onWorldStopped);
+    public static nint il2cpp_unity_liveness_calculation_begin(nint filter, int max_object_count, nint callback,
+        nint userdata, nint onWorldStarted, nint onWorldStopped)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, int, nint, nint, nint, nint, nint>)
+            s_il2cpp_unity_liveness_calculation_begin)(filter, max_object_count, callback, userdata, onWorldStarted,
+            onWorldStopped);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_unity_liveness_calculation_end(IntPtr state);
+    public static void il2cpp_unity_liveness_calculation_end(nint state)
+    {
+        ((delegate* unmanaged[Cdecl]<nint, void>)s_il2cpp_unity_liveness_calculation_end)(state);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_unity_liveness_calculation_from_root(IntPtr root, IntPtr state);
+    public static void il2cpp_unity_liveness_calculation_from_root(nint root, nint state)
+    {
+        ((delegate* unmanaged[Cdecl]<nint, nint, void>)s_il2cpp_unity_liveness_calculation_from_root)(root, state);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_unity_liveness_calculation_from_statics(IntPtr state);
+    public static void il2cpp_unity_liveness_calculation_from_statics(nint state)
+    {
+        ((delegate* unmanaged[Cdecl]<nint, void>)s_il2cpp_unity_liveness_calculation_from_statics)(state);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_method_get_return_type(IntPtr method);
+    public static nint il2cpp_method_get_return_type(nint method)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint>)s_il2cpp_method_get_return_type)(method);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_method_get_declaring_type(IntPtr method);
+    public static nint il2cpp_method_get_declaring_type(nint method)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint>)s_il2cpp_method_get_declaring_type)(method);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern nint il2cpp_method_get_name(IntPtr method);
+    public static nint il2cpp_method_get_name(nint method)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint>)s_il2cpp_method_get_name)(method);
+    }
 
-    public static string? il2cpp_method_get_name_(IntPtr method)
+    public static string? il2cpp_method_get_name_(nint method)
         => Marshal.PtrToStringUTF8(il2cpp_method_get_name(method));
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static IntPtr il2cpp_method_get_from_reflection(IntPtr method)
+    public static nint il2cpp_method_get_from_reflection(nint method)
     {
         if (UnityVersionHandler.HasGetMethodFromReflection) return _il2cpp_method_get_from_reflection(method);
         Il2CppReflectionMethod* reflectionMethod = (Il2CppReflectionMethod*)method;
-        return (IntPtr)reflectionMethod->method;
+        return (nint)reflectionMethod->method;
     }
 
-    [DllImport("libil2cpp.so", EntryPoint = nameof(il2cpp_method_get_from_reflection), CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    private static extern IntPtr _il2cpp_method_get_from_reflection(IntPtr method);
+    private static nint _il2cpp_method_get_from_reflection(nint method)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint>)s__il2cpp_method_get_from_reflection)(method);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_method_get_object(IntPtr method, IntPtr refclass);
+    public static nint il2cpp_method_get_object(nint method, nint refclass)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint, nint>)s_il2cpp_method_get_object)(method, refclass);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    [return: MarshalAs(UnmanagedType.I1)]
-    public static extern bool il2cpp_method_is_generic(IntPtr method);
+    public static bool il2cpp_method_is_generic(nint method)
+    {
+        return (((delegate* unmanaged[Cdecl]<nint, byte>)s_il2cpp_method_is_generic)(method) != 0);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    [return: MarshalAs(UnmanagedType.I1)]
-    public static extern bool il2cpp_method_is_inflated(IntPtr method);
+    public static bool il2cpp_method_is_inflated(nint method)
+    {
+        return (((delegate* unmanaged[Cdecl]<nint, byte>)s_il2cpp_method_is_inflated)(method) != 0);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    [return: MarshalAs(UnmanagedType.I1)]
-    public static extern bool il2cpp_method_is_instance(IntPtr method);
+    public static bool il2cpp_method_is_instance(nint method)
+    {
+        return (((delegate* unmanaged[Cdecl]<nint, byte>)s_il2cpp_method_is_instance)(method) != 0);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern uint il2cpp_method_get_param_count(IntPtr method);
+    public static uint il2cpp_method_get_param_count(nint method)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, uint>)s_il2cpp_method_get_param_count)(method);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_method_get_param(IntPtr method, uint index);
+    public static nint il2cpp_method_get_param(nint method, uint index)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, uint, nint>)s_il2cpp_method_get_param)(method, index);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_method_get_class(IntPtr method);
+    public static nint il2cpp_method_get_class(nint method)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint>)s_il2cpp_method_get_class)(method);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    [return: MarshalAs(UnmanagedType.I1)]
-    public static extern bool il2cpp_method_has_attribute(IntPtr method, IntPtr attr_class);
+    public static bool il2cpp_method_has_attribute(nint method, nint attr_class)
+    {
+        return (((delegate* unmanaged[Cdecl]<nint, nint, byte>)s_il2cpp_method_has_attribute)(method, attr_class) !=
+                0);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern uint il2cpp_method_get_flags(IntPtr method, ref uint iflags);
+    public static uint il2cpp_method_get_flags(nint method, ref uint iflags)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, ref uint, uint>)s_il2cpp_method_get_flags)(method, ref iflags);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern uint il2cpp_method_get_token(IntPtr method);
+    public static uint il2cpp_method_get_token(nint method)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, uint>)s_il2cpp_method_get_token)(method);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern nint il2cpp_method_get_param_name(IntPtr method, uint index);
+    public static nint il2cpp_method_get_param_name(nint method, uint index)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, uint, nint>)s_il2cpp_method_get_param_name)(method, index);
+    }
 
-    public static string? il2cpp_method_get_param_name_(IntPtr method, uint index)
+    public static string? il2cpp_method_get_param_name_(nint method, uint index)
         => Marshal.PtrToStringUTF8(il2cpp_method_get_param_name(method, index));
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_profiler_install(IntPtr prof, IntPtr shutdown_callback);
+    public static void il2cpp_profiler_install(nint prof, nint shutdown_callback)
+    {
+        ((delegate* unmanaged[Cdecl]<nint, nint, void>)s_il2cpp_profiler_install)(prof, shutdown_callback);
+    }
 
-    // [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    // public extern static void il2cpp_profiler_set_events(IL2CPP_ProfileFlags events);
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_profiler_install_enter_leave(IntPtr enter, IntPtr fleave);
+    public static void il2cpp_profiler_install_enter_leave(nint enter, nint fleave)
+    {
+        ((delegate* unmanaged[Cdecl]<nint, nint, void>)s_il2cpp_profiler_install_enter_leave)(enter, fleave);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_profiler_install_allocation(IntPtr callback);
+    public static void il2cpp_profiler_install_allocation(nint callback)
+    {
+        ((delegate* unmanaged[Cdecl]<nint, void>)s_il2cpp_profiler_install_allocation)(callback);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_profiler_install_gc(IntPtr callback, IntPtr heap_resize_callback);
+    public static void il2cpp_profiler_install_gc(nint callback, nint heap_resize_callback)
+    {
+        ((delegate* unmanaged[Cdecl]<nint, nint, void>)s_il2cpp_profiler_install_gc)(callback,
+            heap_resize_callback);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_profiler_install_fileio(IntPtr callback);
+    public static void il2cpp_profiler_install_fileio(nint callback)
+    {
+        ((delegate* unmanaged[Cdecl]<nint, void>)s_il2cpp_profiler_install_fileio)(callback);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_profiler_install_thread(IntPtr start, IntPtr end);
+    public static void il2cpp_profiler_install_thread(nint start, nint end)
+    {
+        ((delegate* unmanaged[Cdecl]<nint, nint, void>)s_il2cpp_profiler_install_thread)(start, end);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern uint il2cpp_property_get_flags(IntPtr prop);
+    public static uint il2cpp_property_get_flags(nint prop)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, uint>)s_il2cpp_property_get_flags)(prop);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_property_get_get_method(IntPtr prop);
+    public static nint il2cpp_property_get_get_method(nint prop)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint>)s_il2cpp_property_get_get_method)(prop);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_property_get_set_method(IntPtr prop);
+    public static nint il2cpp_property_get_set_method(nint prop)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint>)s_il2cpp_property_get_set_method)(prop);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern nint il2cpp_property_get_name(IntPtr prop);
+    public static nint il2cpp_property_get_name(nint prop)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint>)s_il2cpp_property_get_name)(prop);
+    }
 
-    public static string? il2cpp_property_get_name_(IntPtr prop)
+    public static string? il2cpp_property_get_name_(nint prop)
         => Marshal.PtrToStringUTF8(il2cpp_property_get_name(prop));
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_property_get_parent(IntPtr prop);
+    public static nint il2cpp_property_get_parent(nint prop)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint>)s_il2cpp_property_get_parent)(prop);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_object_get_class(IntPtr obj);
+    public static nint il2cpp_object_get_class(nint obj)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint>)s_il2cpp_object_get_class)(obj);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern uint il2cpp_object_get_size(IntPtr obj);
+    public static uint il2cpp_object_get_size(nint obj)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, uint>)s_il2cpp_object_get_size)(obj);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_object_get_virtual_method(IntPtr obj, IntPtr method);
+    public static nint il2cpp_object_get_virtual_method(nint obj, nint method)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint, nint>)s_il2cpp_object_get_virtual_method)(obj, method);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_object_new(IntPtr klass);
+    public static nint il2cpp_object_new(nint klass)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint>)s_il2cpp_object_new)(klass);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_object_unbox(IntPtr obj);
+    public static nint il2cpp_object_unbox(nint obj)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint>)s_il2cpp_object_unbox)(obj);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_value_box(IntPtr klass, IntPtr data);
+    public static nint il2cpp_value_box(nint klass, nint data)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint, nint>)s_il2cpp_value_box)(klass, data);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_monitor_enter(IntPtr obj);
+    public static void il2cpp_monitor_enter(nint obj)
+    {
+        ((delegate* unmanaged[Cdecl]<nint, void>)s_il2cpp_monitor_enter)(obj);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    [return: MarshalAs(UnmanagedType.I1)]
-    public static extern bool il2cpp_monitor_try_enter(IntPtr obj, uint timeout);
+    public static bool il2cpp_monitor_try_enter(nint obj, uint timeout)
+    {
+        return (((delegate* unmanaged[Cdecl]<nint, uint, byte>)s_il2cpp_monitor_try_enter)(obj, timeout) != 0);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_monitor_exit(IntPtr obj);
+    public static void il2cpp_monitor_exit(nint obj)
+    {
+        ((delegate* unmanaged[Cdecl]<nint, void>)s_il2cpp_monitor_exit)(obj);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_monitor_pulse(IntPtr obj);
+    public static void il2cpp_monitor_pulse(nint obj)
+    {
+        ((delegate* unmanaged[Cdecl]<nint, void>)s_il2cpp_monitor_pulse)(obj);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_monitor_pulse_all(IntPtr obj);
+    public static void il2cpp_monitor_pulse_all(nint obj)
+    {
+        ((delegate* unmanaged[Cdecl]<nint, void>)s_il2cpp_monitor_pulse_all)(obj);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_monitor_wait(IntPtr obj);
+    public static void il2cpp_monitor_wait(nint obj)
+    {
+        ((delegate* unmanaged[Cdecl]<nint, void>)s_il2cpp_monitor_wait)(obj);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    [return: MarshalAs(UnmanagedType.I1)]
-    public static extern bool il2cpp_monitor_try_wait(IntPtr obj, uint timeout);
+    public static bool il2cpp_monitor_try_wait(nint obj, uint timeout)
+    {
+        return (((delegate* unmanaged[Cdecl]<nint, uint, byte>)s_il2cpp_monitor_try_wait)(obj, timeout) != 0);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_runtime_invoke(IntPtr method, IntPtr obj, void** param, ref IntPtr exc);
+    public static nint il2cpp_runtime_invoke(nint method, nint obj, void** param, ref nint exc)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint, void**, ref nint, nint>)s_il2cpp_runtime_invoke)(method,
+            obj, param, ref exc);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     // param can be of Il2CppObject*
-    public static extern IntPtr il2cpp_runtime_invoke_convert_args(IntPtr method, IntPtr obj, void** param,
-        int paramCount, ref IntPtr exc);
+    public static nint il2cpp_runtime_invoke_convert_args(nint method, nint obj, void** param, int paramCount,
+        ref nint exc)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint, void**, int, ref nint, nint>)
+            s_il2cpp_runtime_invoke_convert_args)(method, obj, param, paramCount, ref exc);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_runtime_class_init(IntPtr klass);
+    public static void il2cpp_runtime_class_init(nint klass)
+    {
+        ((delegate* unmanaged[Cdecl]<nint, void>)s_il2cpp_runtime_class_init)(klass);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_runtime_object_init(IntPtr obj);
+    public static void il2cpp_runtime_object_init(nint obj)
+    {
+        ((delegate* unmanaged[Cdecl]<nint, void>)s_il2cpp_runtime_object_init)(obj);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_runtime_object_init_exception(IntPtr obj, ref IntPtr exc);
+    public static void il2cpp_runtime_object_init_exception(nint obj, ref nint exc)
+    {
+        ((delegate* unmanaged[Cdecl]<nint, ref nint, void>)s_il2cpp_runtime_object_init_exception)(obj, ref exc);
+    }
 
-    // [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    // public extern static void il2cpp_runtime_unhandled_exception_policy_set(IL2CPP_RuntimeUnhandledExceptionPolicy value);
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern int il2cpp_string_length(IntPtr str);
+    public static int il2cpp_string_length(nint str)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, int>)s_il2cpp_string_length)(str);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern char* il2cpp_string_chars(IntPtr str);
+    public static char* il2cpp_string_chars(nint str)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, char*>)s_il2cpp_string_chars)(str);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_string_new(string str);
+    public static nint il2cpp_string_new(string str)
+    {
+        nint __m_str = Marshal.StringToHGlobalAnsi(str);
+        try
+        {
+            return ((delegate* unmanaged[Cdecl]<byte*, nint>)s_il2cpp_string_new)((byte*)__m_str);
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(__m_str);
+        }
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_string_new_len(string str, uint length);
+    public static nint il2cpp_string_new_len(string str, uint length)
+    {
+        nint __m_str = Marshal.StringToHGlobalAnsi(str);
+        try
+        {
+            return ((delegate* unmanaged[Cdecl]<byte*, uint, nint>)s_il2cpp_string_new_len)((byte*)__m_str, length);
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(__m_str);
+        }
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_string_new_utf16(char* text, int len);
+    public static nint il2cpp_string_new_utf16(char* text, int len)
+    {
+        return ((delegate* unmanaged[Cdecl]<char*, int, nint>)s_il2cpp_string_new_utf16)(text, len);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_string_new_wrapper(string str);
+    public static nint il2cpp_string_new_wrapper(string str)
+    {
+        nint __m_str = Marshal.StringToHGlobalAnsi(str);
+        try
+        {
+            return ((delegate* unmanaged[Cdecl]<byte*, nint>)s_il2cpp_string_new_wrapper)((byte*)__m_str);
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(__m_str);
+        }
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_string_intern(string str);
+    public static nint il2cpp_string_intern(string str)
+    {
+        nint __m_str = Marshal.StringToHGlobalAnsi(str);
+        try
+        {
+            return ((delegate* unmanaged[Cdecl]<byte*, nint>)s_il2cpp_string_intern)((byte*)__m_str);
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(__m_str);
+        }
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_string_is_interned(string str);
+    public static nint il2cpp_string_is_interned(string str)
+    {
+        nint __m_str = Marshal.StringToHGlobalAnsi(str);
+        try
+        {
+            return ((delegate* unmanaged[Cdecl]<byte*, nint>)s_il2cpp_string_is_interned)((byte*)__m_str);
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(__m_str);
+        }
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_thread_current();
+    public static nint il2cpp_thread_current()
+    {
+        return ((delegate* unmanaged[Cdecl]<nint>)s_il2cpp_thread_current)();
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_thread_attach(IntPtr domain);
+    public static nint il2cpp_thread_attach(nint domain)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint>)s_il2cpp_thread_attach)(domain);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_thread_detach(IntPtr thread);
+    public static void il2cpp_thread_detach(nint thread)
+    {
+        ((delegate* unmanaged[Cdecl]<nint, void>)s_il2cpp_thread_detach)(thread);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void** il2cpp_thread_get_all_attached_threads(ref uint size);
+    public static void** il2cpp_thread_get_all_attached_threads(ref uint size)
+    {
+        return ((delegate* unmanaged[Cdecl]<ref uint, void**>)s_il2cpp_thread_get_all_attached_threads)(ref size);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    [return: MarshalAs(UnmanagedType.I1)]
-    public static extern bool il2cpp_is_vm_thread(IntPtr thread);
+    public static bool il2cpp_is_vm_thread(nint thread)
+    {
+        return (((delegate* unmanaged[Cdecl]<nint, byte>)s_il2cpp_is_vm_thread)(thread) != 0);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_current_thread_walk_frame_stack(IntPtr func, IntPtr user_data);
+    public static void il2cpp_current_thread_walk_frame_stack(nint func, nint user_data)
+    {
+        ((delegate* unmanaged[Cdecl]<nint, nint, void>)s_il2cpp_current_thread_walk_frame_stack)(func, user_data);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_thread_walk_frame_stack(IntPtr thread, IntPtr func, IntPtr user_data);
+    public static void il2cpp_thread_walk_frame_stack(nint thread, nint func, nint user_data)
+    {
+        ((delegate* unmanaged[Cdecl]<nint, nint, nint, void>)s_il2cpp_thread_walk_frame_stack)(thread, func,
+            user_data);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    [return: MarshalAs(UnmanagedType.I1)]
-    public static extern bool il2cpp_current_thread_get_top_frame(IntPtr frame);
+    public static bool il2cpp_current_thread_get_top_frame(nint frame)
+    {
+        return (((delegate* unmanaged[Cdecl]<nint, byte>)s_il2cpp_current_thread_get_top_frame)(frame) != 0);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    [return: MarshalAs(UnmanagedType.I1)]
-    public static extern bool il2cpp_thread_get_top_frame(IntPtr thread, IntPtr frame);
+    public static bool il2cpp_thread_get_top_frame(nint thread, nint frame)
+    {
+        return (((delegate* unmanaged[Cdecl]<nint, nint, byte>)s_il2cpp_thread_get_top_frame)(thread, frame) != 0);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    [return: MarshalAs(UnmanagedType.I1)]
-    public static extern bool il2cpp_current_thread_get_frame_at(int offset, IntPtr frame);
+    public static bool il2cpp_current_thread_get_frame_at(int offset, nint frame)
+    {
+        return (((delegate* unmanaged[Cdecl]<int, nint, byte>)s_il2cpp_current_thread_get_frame_at)(offset, frame) !=
+                0);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    [return: MarshalAs(UnmanagedType.I1)]
-    public static extern bool il2cpp_thread_get_frame_at(IntPtr thread, int offset, IntPtr frame);
+    public static bool il2cpp_thread_get_frame_at(nint thread, int offset, nint frame)
+    {
+        return (((delegate* unmanaged[Cdecl]<nint, int, nint, byte>)s_il2cpp_thread_get_frame_at)(thread, offset,
+            frame) != 0);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern int il2cpp_current_thread_get_stack_depth();
+    public static int il2cpp_current_thread_get_stack_depth()
+    {
+        return ((delegate* unmanaged[Cdecl]<int>)s_il2cpp_current_thread_get_stack_depth)();
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern int il2cpp_thread_get_stack_depth(IntPtr thread);
+    public static int il2cpp_thread_get_stack_depth(nint thread)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, int>)s_il2cpp_thread_get_stack_depth)(thread);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_type_get_object(IntPtr type);
+    public static nint il2cpp_type_get_object(nint type)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint>)s_il2cpp_type_get_object)(type);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern int il2cpp_type_get_type(IntPtr type);
+    public static int il2cpp_type_get_type(nint type)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, int>)s_il2cpp_type_get_type)(type);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_type_get_class_or_element_class(IntPtr type);
+    public static nint il2cpp_type_get_class_or_element_class(nint type)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint>)s_il2cpp_type_get_class_or_element_class)(type);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern nint il2cpp_type_get_name(IntPtr type);
+    public static nint il2cpp_type_get_name(nint type)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint>)s_il2cpp_type_get_name)(type);
+    }
 
-    public static string? il2cpp_type_get_name_(IntPtr type)
+    public static string? il2cpp_type_get_name_(nint type)
         => Marshal.PtrToStringUTF8(il2cpp_type_get_name(type));
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    [return: MarshalAs(UnmanagedType.I1)]
-    public static extern bool il2cpp_type_is_byref(IntPtr type);
+    public static bool il2cpp_type_is_byref(nint type)
+    {
+        return (((delegate* unmanaged[Cdecl]<nint, byte>)s_il2cpp_type_is_byref)(type) != 0);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern uint il2cpp_type_get_attrs(IntPtr type);
+    public static uint il2cpp_type_get_attrs(nint type)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, uint>)s_il2cpp_type_get_attrs)(type);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    [return: MarshalAs(UnmanagedType.I1)]
-    public static extern bool il2cpp_type_equals(IntPtr type, IntPtr otherType);
+    public static bool il2cpp_type_equals(nint type, nint otherType)
+    {
+        return (((delegate* unmanaged[Cdecl]<nint, nint, byte>)s_il2cpp_type_equals)(type, otherType) != 0);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_type_get_assembly_qualified_name(IntPtr type);
+    public static nint il2cpp_type_get_assembly_qualified_name(nint type)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint>)s_il2cpp_type_get_assembly_qualified_name)(type);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_image_get_assembly(IntPtr image);
+    public static nint il2cpp_image_get_assembly(nint image)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint>)s_il2cpp_image_get_assembly)(image);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern nint il2cpp_image_get_name(IntPtr image);
+    public static nint il2cpp_image_get_name(nint image)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint>)s_il2cpp_image_get_name)(image);
+    }
 
-    public static string? il2cpp_image_get_name_(IntPtr image)
+    public static string? il2cpp_image_get_name_(nint image)
         => Marshal.PtrToStringUTF8(il2cpp_image_get_name(image));
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern nint il2cpp_image_get_filename(IntPtr image);
+    public static nint il2cpp_image_get_filename(nint image)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint>)s_il2cpp_image_get_filename)(image);
+    }
 
-    public static string? il2cpp_image_get_filename_(IntPtr image)
+    public static string? il2cpp_image_get_filename_(nint image)
         => Marshal.PtrToStringUTF8(il2cpp_image_get_filename(image));
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_image_get_entry_point(IntPtr image);
+    public static nint il2cpp_image_get_entry_point(nint image)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint>)s_il2cpp_image_get_entry_point)(image);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern uint il2cpp_image_get_class_count(IntPtr image);
+    public static uint il2cpp_image_get_class_count(nint image)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, uint>)s_il2cpp_image_get_class_count)(image);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_image_get_class(IntPtr image, uint index);
+    public static nint il2cpp_image_get_class(nint image, uint index)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, uint, nint>)s_il2cpp_image_get_class)(image, index);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_capture_memory_snapshot();
+    public static nint il2cpp_capture_memory_snapshot()
+    {
+        return ((delegate* unmanaged[Cdecl]<nint>)s_il2cpp_capture_memory_snapshot)();
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_free_captured_memory_snapshot(IntPtr snapshot);
+    public static void il2cpp_free_captured_memory_snapshot(nint snapshot)
+    {
+        ((delegate* unmanaged[Cdecl]<nint, void>)s_il2cpp_free_captured_memory_snapshot)(snapshot);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_set_find_plugin_callback(IntPtr method);
+    public static void il2cpp_set_find_plugin_callback(nint method)
+    {
+        ((delegate* unmanaged[Cdecl]<nint, void>)s_il2cpp_set_find_plugin_callback)(method);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_register_log_callback(IntPtr method);
+    public static void il2cpp_register_log_callback(nint method)
+    {
+        ((delegate* unmanaged[Cdecl]<nint, void>)s_il2cpp_register_log_callback)(method);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_debugger_set_agent_options(IntPtr options);
+    public static void il2cpp_debugger_set_agent_options(nint options)
+    {
+        ((delegate* unmanaged[Cdecl]<nint, void>)s_il2cpp_debugger_set_agent_options)(options);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    [return: MarshalAs(UnmanagedType.I1)]
-    public static extern bool il2cpp_is_debugger_attached();
+    public static bool il2cpp_is_debugger_attached()
+    {
+        return (((delegate* unmanaged[Cdecl]<byte>)s_il2cpp_is_debugger_attached)() != 0);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_unity_install_unitytls_interface(void* unitytlsInterfaceStruct);
+    public static void il2cpp_unity_install_unitytls_interface(void* unitytlsInterfaceStruct)
+    {
+        ((delegate* unmanaged[Cdecl]<void*, void>)s_il2cpp_unity_install_unitytls_interface)(unitytlsInterfaceStruct);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_custom_attrs_from_class(IntPtr klass);
+    public static nint il2cpp_custom_attrs_from_class(nint klass)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint>)s_il2cpp_custom_attrs_from_class)(klass);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_custom_attrs_from_method(IntPtr method);
+    public static nint il2cpp_custom_attrs_from_method(nint method)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint>)s_il2cpp_custom_attrs_from_method)(method);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_custom_attrs_get_attr(IntPtr ainfo, IntPtr attr_klass);
+    public static nint il2cpp_custom_attrs_get_attr(nint ainfo, nint attr_klass)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint, nint>)s_il2cpp_custom_attrs_get_attr)(ainfo, attr_klass);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    [return: MarshalAs(UnmanagedType.I1)]
-    public static extern bool il2cpp_custom_attrs_has_attr(IntPtr ainfo, IntPtr attr_klass);
+    public static bool il2cpp_custom_attrs_has_attr(nint ainfo, nint attr_klass)
+    {
+        return (((delegate* unmanaged[Cdecl]<nint, nint, byte>)s_il2cpp_custom_attrs_has_attr)(ainfo, attr_klass) !=
+                0);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern IntPtr il2cpp_custom_attrs_construct(IntPtr cinfo);
+    public static nint il2cpp_custom_attrs_construct(nint cinfo)
+    {
+        return ((delegate* unmanaged[Cdecl]<nint, nint>)s_il2cpp_custom_attrs_construct)(cinfo);
+    }
 
-    [DllImport("libil2cpp.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    public static extern void il2cpp_custom_attrs_free(IntPtr ainfo);
+    public static void il2cpp_custom_attrs_free(nint ainfo)
+    {
+        ((delegate* unmanaged[Cdecl]<nint, void>)s_il2cpp_custom_attrs_free)(ainfo);
+    }
 }
