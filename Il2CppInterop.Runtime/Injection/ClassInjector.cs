@@ -160,6 +160,8 @@ public static unsafe partial class ClassInjector
         RegisterTypeInIl2Cpp(typeof(T), options);
     }
 
+    static int AlignUp(int v, int a) => (v + a - 1) & ~(a - 1);
+
     public static void RegisterTypeInIl2Cpp(Type type, RegisterTypeOptions options)
     {
         var interfaces = options.Interfaces;
@@ -259,13 +261,16 @@ public static unsafe partial class ClassInjector
             var fieldInfo = UnityVersionHandler.Wrap(il2cppFields + i * UnityVersionHandler.FieldInfoSize());
             fieldInfo.Name = Marshal.StringToCoTaskMemUTF8(fieldsToInject[i].Name);
             fieldInfo.Parent = classPointer.ClassPointer;
-            fieldInfo.Offset = fieldOffset;
 
             var fieldType = fieldsToInject[i].FieldType == typeof(Il2CppStringField)
                 ? typeof(string)
                 : fieldsToInject[i].FieldType.GenericTypeArguments[0];
             var fieldAttributes = fieldsToInject[i].Attributes;
+
             var fieldInfoClass = Il2CppClassPointerStore.GetNativeClassPointer(fieldType);
+            if (fieldInfoClass == IntPtr.Zero)
+                throw new Exception($"Type {fieldType} in {type}.{fieldsToInject[i].Name} doesn't exist in Il2Cpp");
+
             if (!_injectedFieldTypes.TryGetValue((fieldType, fieldAttributes), out var fieldTypePtr))
             {
                 var classType =
@@ -283,23 +288,28 @@ public static unsafe partial class ClassInjector
             }
 
             fieldInfo.Type = (Il2CppTypeStruct*)fieldTypePtr;
-            if (fieldInfoClass == IntPtr.Zero)
-                throw new Exception($"Type {fieldType} in {type}.{fieldsToInject[i].Name} doesn't exist in Il2Cpp");
 
             if (IL2CPP.il2cpp_class_is_valuetype(fieldInfoClass))
             {
                 uint _align = 0;
                 var fieldSize = IL2CPP.il2cpp_class_value_size(fieldInfoClass, ref _align);
-                fieldOffset += fieldSize;
+                var a = Math.Max((int)_align, 1);
+                fieldOffset = AlignUp(fieldOffset, a);
+                fieldInfo.Offset = fieldOffset;
+                fieldOffset += Math.Min(fieldSize, 8);
+
             }
             else
             {
-                fieldOffset += sizeof(Il2CppObject*);
+                fieldOffset = AlignUp(fieldOffset, sizeof(IntPtr));
+                fieldInfo.Offset = fieldOffset;
+                fieldOffset += sizeof(IntPtr);
             }
         }
 
         classPointer.Fields = il2cppFields;
 
+        fieldOffset = AlignUp(fieldOffset, sizeof(IntPtr));
         classPointer.InstanceSize = (uint)(fieldOffset + sizeof(InjectedClassData));
         classPointer.ActualSize = classPointer.InstanceSize;
 
@@ -527,6 +537,40 @@ public static unsafe partial class ClassInjector
 
         if (options.LogSuccess)
             Logger.Instance.LogInformation("Registered mono type {Type} in il2cpp domain", type);
+
+        for (int i = 0; i < classPointer.FieldCount; i++)
+        {
+            var field = UnityVersionHandler.Wrap(&classPointer.Fields[i]);
+            var fieldType = UnityVersionHandler.Wrap(field.Type);
+            var classPtr = IL2CPP.il2cpp_type_get_class_or_element_class(fieldType.Pointer);
+            var fieldClass = UnityVersionHandler.Wrap((Il2CppClass*)classPtr);
+
+            if (fieldType.ByRef && field.Offset % 8 != 0)
+            {
+                Logger.Instance.LogWarning("Reference field offset not aligned to 8!");
+            }
+
+            if (fieldType.ValueType)
+            {
+                uint align = 0;
+                var fieldSize = IL2CPP.il2cpp_class_value_size(classPtr, ref align);
+                align = Math.Min(align, 8);
+                if (field.Offset % align != 0)
+                {
+                    Logger.Instance.LogWarning("Value-type field (size: {size} not aligned to {align}", fieldSize, align);
+                }
+            }
+
+            if (fieldClass.InstanceSize % 8 != 0)
+            {
+                Logger.Instance.LogWarning("Instance size not aligned to 8!");
+            }
+
+            if ((fieldClass.InstanceSize - sizeof(InjectedClassData)) % 8 != 0)
+            {
+                Logger.Instance.LogWarning("Instance size - InjectedData not aligned to 8!");
+            }
+        }
     }
 
     private static bool IsTypeSupported(Type type)
