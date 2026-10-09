@@ -257,6 +257,9 @@ public static unsafe partial class ClassInjector
         var il2cppFields =
             (Il2CppFieldInfo*)Marshal.AllocHGlobal(classPointer.FieldCount * UnityVersionHandler.FieldInfoSize());
         var fieldOffset = (int)classPointer.InstanceSize;
+        var legacyOffset = (int)classPointer.InstanceSize;
+        var legacyBad = false;
+
         for (var i = 0; i < classPointer.FieldCount; i++)
         {
             var fieldInfo = UnityVersionHandler.Wrap(il2cppFields + i * UnityVersionHandler.FieldInfoSize());
@@ -293,22 +296,34 @@ public static unsafe partial class ClassInjector
             classPointer.HasReferences |= !fieldIsValueType ||
                                           IL2CPP.il2cpp_class_has_references(fieldInfoClass);
 
+            int fieldSize;
             if (fieldIsValueType)
             {
-                uint _align = 0;
-                var fieldSize = IL2CPP.il2cpp_class_value_size(fieldInfoClass, ref _align);
-                var a = Math.Max((int)_align, 1);
+                uint align = 0;
+                fieldSize = IL2CPP.il2cpp_class_value_size(fieldInfoClass, ref align);
+                var a = Math.Clamp((int)align, 1, 8);
+                if (IL2CPP.il2cpp_class_has_references(fieldInfoClass)) a = 8; // structs holding refs must be pointer-aligned
                 fieldOffset = AlignUp(fieldOffset, a);
                 fieldInfo.Offset = fieldOffset;
-                fieldOffset += Math.Min(fieldSize, 8);
+                fieldOffset += fieldSize;
             }
             else
             {
+                fieldSize = sizeof(IntPtr);
                 fieldOffset = AlignUp(fieldOffset, sizeof(IntPtr));
                 fieldInfo.Offset = fieldOffset;
                 fieldOffset += sizeof(IntPtr);
             }
+
+            var legacySize = fieldIsValueType ? fieldSize : sizeof(IntPtr);
+            var needsPtrAlign = !fieldIsValueType || IL2CPP.il2cpp_class_has_references(fieldInfoClass);
+            if (needsPtrAlign && legacyOffset % 8 != 0) legacyBad = true;
+            legacyOffset += legacySize;
         }
+
+        if (legacyOffset % 8 != 0) legacyBad = true;
+        if (legacyBad)
+            Logger.Instance.LogWarning("[layout-audit] {Type} would have had a misaligned layout under the old code", type.FullName);
 
         classPointer.Fields = il2cppFields;
 
@@ -540,38 +555,6 @@ public static unsafe partial class ClassInjector
 
         if (options.LogSuccess)
             Logger.Instance.LogInformation("Registered mono type {Type} in il2cpp domain", type);
-
-        for (int i = 0; i < classPointer.FieldCount; i++)
-        {
-            var field = UnityVersionHandler.Wrap(il2cppFields + i * UnityVersionHandler.FieldInfoSize());
-            var fieldType = UnityVersionHandler.Wrap(field.Type);
-
-            if (fieldType.ByRef && field.Offset % 8 != 0)
-            {
-                Logger.Instance.LogWarning("Reference field offset not aligned to 8!");
-            }
-
-            if (fieldType.ValueType)
-            {
-                uint align = 0;
-                var fieldSize = IL2CPP.il2cpp_class_value_size(classPointer.Pointer, ref align);
-                align = Math.Min(align, 8);
-                if (field.Offset % align != 0)
-                {
-                    Logger.Instance.LogWarning("Value-type field (size: {size} not aligned to {align}", fieldSize, align);
-                }
-            }
-
-            if (classPointer.InstanceSize % 8 != 0)
-            {
-                Logger.Instance.LogWarning("Instance size not aligned to 8!");
-            }
-
-            if ((classPointer.InstanceSize - sizeof(InjectedClassData)) % 8 != 0)
-            {
-                Logger.Instance.LogWarning("Instance size - InjectedData not aligned to 8!");
-            }
-        }
     }
 
     private static bool IsTypeSupported(Type type)
