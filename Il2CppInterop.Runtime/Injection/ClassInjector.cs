@@ -297,7 +297,6 @@ public static unsafe partial class ClassInjector
                 fieldOffset = AlignUp(fieldOffset, a);
                 fieldInfo.Offset = fieldOffset;
                 fieldOffset += Math.Min(fieldSize, 8);
-
             }
             else
             {
@@ -542,8 +541,6 @@ public static unsafe partial class ClassInjector
         {
             var field = UnityVersionHandler.Wrap(&classPointer.Fields[i]);
             var fieldType = UnityVersionHandler.Wrap(field.Type);
-            var classPtr = IL2CPP.il2cpp_type_get_class_or_element_class(fieldType.Pointer);
-            var fieldClass = UnityVersionHandler.Wrap((Il2CppClass*)classPtr);
 
             if (fieldType.ByRef && field.Offset % 8 != 0)
             {
@@ -553,7 +550,7 @@ public static unsafe partial class ClassInjector
             if (fieldType.ValueType)
             {
                 uint align = 0;
-                var fieldSize = IL2CPP.il2cpp_class_value_size(classPtr, ref align);
+                var fieldSize = IL2CPP.il2cpp_class_value_size(classPointer.Pointer, ref align);
                 align = Math.Min(align, 8);
                 if (field.Offset % align != 0)
                 {
@@ -561,12 +558,12 @@ public static unsafe partial class ClassInjector
                 }
             }
 
-            if (fieldClass.InstanceSize % 8 != 0)
+            if (classPointer.InstanceSize % 8 != 0)
             {
                 Logger.Instance.LogWarning("Instance size not aligned to 8!");
             }
 
-            if ((fieldClass.InstanceSize - sizeof(InjectedClassData)) % 8 != 0)
+            if ((classPointer.InstanceSize - sizeof(InjectedClassData)) % 8 != 0)
             {
                 Logger.Instance.LogWarning("Instance size - InjectedData not aligned to 8!");
             }
