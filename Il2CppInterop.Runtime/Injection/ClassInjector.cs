@@ -543,7 +543,7 @@ public static unsafe partial class ClassInjector
 
         for (int i = 0; i < classPointer.FieldCount; i++)
         {
-            var field = UnityVersionHandler.Wrap(&classPointer.Fields[i]);
+            var field = UnityVersionHandler.Wrap(il2cppFields + i * UnityVersionHandler.FieldInfoSize());
             var fieldType = UnityVersionHandler.Wrap(field.Type);
 
             if (fieldType.ByRef && field.Offset % 8 != 0)
