@@ -14,6 +14,7 @@ using Microsoft.Extensions.Logging;
 using MonoMod.Cil;
 using MonoMod.RuntimeDetour;
 using MonoMod.Utils;
+using IDetour = Il2CppInterop.Runtime.Injection.IDetour;
 using OpCode = System.Reflection.Emit.OpCode;
 using OpCodes = System.Reflection.Emit.OpCodes;
 using ValueType = Il2CppSystem.ValueType;
@@ -145,7 +146,8 @@ internal unsafe class Il2CppDetourMethodPatcher : MethodPatcher
 
         // Generate the MethodInfo instances
         var managedHookedMethod = copiedDmd.Generate();
-        var unmanagedTrampolineMethod = GenerateNativeToManagedTrampoline(managedHookedMethod, out var specialReturnBuffer).Generate();
+        var unmanagedTrampolineMethod =
+            GenerateNativeToManagedTrampoline(managedHookedMethod, out var specialReturnBuffer).Generate();
 
         // Apply a detour from the unmanaged implementation to the patched harmony method
         var unmanagedDelegateType = DelegateTypeFactory.instance.CreateDelegateType(unmanagedTrampolineMethod,
@@ -236,7 +238,8 @@ internal unsafe class Il2CppDetourMethodPatcher : MethodPatcher
         return true;
     }
 
-    private DynamicMethodDefinition GenerateNativeToManagedTrampoline(MethodInfo targetManagedMethodInfo, out bool specialReturnBuffer)
+    private DynamicMethodDefinition GenerateNativeToManagedTrampoline(MethodInfo targetManagedMethodInfo,
+        out bool specialReturnBuffer)
     {
         // managedParams are the interop types used on the managed side
         // unmanagedParams are IntPtr references that are used by IL2CPP compiled assembly
@@ -251,7 +254,9 @@ internal unsafe class Il2CppDetourMethodPatcher : MethodPatcher
         if (isReturnValueType)
         {
             uint align = 0;
-            returnSize = IL2CPP.il2cpp_class_value_size(Il2CppClassPointerStore.GetNativeClassPointer(managedReturnType), ref align);
+            returnSize =
+                IL2CPP.il2cpp_class_value_size(Il2CppClassPointerStore.GetNativeClassPointer(managedReturnType),
+                    ref align);
         }
 
         var hasReturnBuffer = isReturnValueType && IsReturnBufferNeeded(returnSize);
@@ -297,8 +302,8 @@ internal unsafe class Il2CppDetourMethodPatcher : MethodPatcher
                      1]; // +1 for methodInfo at the end
 
         if (hasReturnBuffer && firstParamReturnBuffer)
-        // With GCC the return buffer seems to be the first param, same is likely with other compilers too
-        // note: not on arm64, arm64 passes buffer pointer in X8
+            // With GCC the return buffer seems to be the first param, same is likely with other compilers too
+            // note: not on arm64, arm64 passes buffer pointer in X8
         {
             unmanagedParams[0] = typeof(IntPtr);
         }
@@ -480,7 +485,9 @@ internal unsafe class Il2CppDetourMethodPatcher : MethodPatcher
             il.Emit(OpCodes.Br_S, endLabel);
 
             il.MarkLabel(notNullLabel);
-            il.Emit(OpCodes.Call, AccessTools.Method(typeof(Il2CppObjectPool), nameof(Il2CppObjectPool.Get)).MakeGenericMethod(originalType));
+            il.Emit(OpCodes.Call,
+                AccessTools.Method(typeof(Il2CppObjectPool), nameof(Il2CppObjectPool.Get))
+                    .MakeGenericMethod(originalType));
 
             il.MarkLabel(endLabel);
         }
