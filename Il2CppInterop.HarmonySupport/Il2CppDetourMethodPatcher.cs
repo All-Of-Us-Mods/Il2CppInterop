@@ -301,9 +301,9 @@ internal unsafe class Il2CppDetourMethodPatcher : MethodPatcher
             new Type[managedParams.Length + paramStartIndex +
                      1]; // +1 for methodInfo at the end
 
+        // With GCC the return buffer seems to be the first param, same is likely with other compilers too
+        // note: not on arm64, arm64 passes buffer pointer in X8
         if (hasReturnBuffer && firstParamReturnBuffer)
-            // With GCC the return buffer seems to be the first param, same is likely with other compilers too
-            // note: not on arm64, arm64 passes buffer pointer in X8
         {
             unmanagedParams[0] = typeof(IntPtr);
         }
