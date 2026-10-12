@@ -19,8 +19,8 @@
 
   <ItemGroup>
     <PackageReference Include="HarmonyX" Version="2.16.0" />
-    <PackageReference Include="MonoMod.RuntimeDetour" Version="25.3.4-star" />
-    <PackageReference Include="MonoMod.Utils" Version="25.0.12-star" />
+    <PackageReference Include="MonoMod.RuntimeDetour" Version="25.4.0-alpha.dev" />
+    <PackageReference Include="MonoMod.Utils" Version="25.0.15-alpha.dev" />
   </ItemGroup>
 
 </Project>

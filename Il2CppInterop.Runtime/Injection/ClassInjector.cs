@@ -160,6 +160,8 @@ public static unsafe partial class ClassInjector
         RegisterTypeInIl2Cpp(typeof(T), options);
     }
 
+    static int AlignUp(int v, int a) => (v + a - 1) & ~(a - 1);
+
     public static void RegisterTypeInIl2Cpp(Type type, RegisterTypeOptions options)
     {
         var interfaces = options.Interfaces;
@@ -250,22 +252,29 @@ public static unsafe partial class ClassInjector
             .Where(IsFieldEligible)
             .ToArray();
         classPointer.FieldCount = (ushort)fieldsToInject.Length;
+        classPointer.HasReferences = baseClassPointer.HasReferences;
 
         var il2cppFields =
             (Il2CppFieldInfo*)Marshal.AllocHGlobal(classPointer.FieldCount * UnityVersionHandler.FieldInfoSize());
         var fieldOffset = (int)classPointer.InstanceSize;
+        var legacyOffset = (int)classPointer.InstanceSize;
+        var legacyBad = false;
+
         for (var i = 0; i < classPointer.FieldCount; i++)
         {
             var fieldInfo = UnityVersionHandler.Wrap(il2cppFields + i * UnityVersionHandler.FieldInfoSize());
             fieldInfo.Name = Marshal.StringToCoTaskMemUTF8(fieldsToInject[i].Name);
             fieldInfo.Parent = classPointer.ClassPointer;
-            fieldInfo.Offset = fieldOffset;
 
             var fieldType = fieldsToInject[i].FieldType == typeof(Il2CppStringField)
                 ? typeof(string)
                 : fieldsToInject[i].FieldType.GenericTypeArguments[0];
             var fieldAttributes = fieldsToInject[i].Attributes;
+
             var fieldInfoClass = Il2CppClassPointerStore.GetNativeClassPointer(fieldType);
+            if (fieldInfoClass == IntPtr.Zero)
+                throw new Exception($"Type {fieldType} in {type}.{fieldsToInject[i].Name} doesn't exist in Il2Cpp");
+
             if (!_injectedFieldTypes.TryGetValue((fieldType, fieldAttributes), out var fieldTypePtr))
             {
                 var classType =
@@ -283,23 +292,42 @@ public static unsafe partial class ClassInjector
             }
 
             fieldInfo.Type = (Il2CppTypeStruct*)fieldTypePtr;
-            if (fieldInfoClass == IntPtr.Zero)
-                throw new Exception($"Type {fieldType} in {type}.{fieldsToInject[i].Name} doesn't exist in Il2Cpp");
+            var fieldIsValueType = IL2CPP.il2cpp_class_is_valuetype(fieldInfoClass);
+            classPointer.HasReferences |= !fieldIsValueType ||
+                                          IL2CPP.il2cpp_class_has_references(fieldInfoClass);
 
-            if (IL2CPP.il2cpp_class_is_valuetype(fieldInfoClass))
+            int fieldSize;
+            if (fieldIsValueType)
             {
-                uint _align = 0;
-                var fieldSize = IL2CPP.il2cpp_class_value_size(fieldInfoClass, ref _align);
+                uint align = 0;
+                fieldSize = IL2CPP.il2cpp_class_value_size(fieldInfoClass, ref align);
+                var a = Math.Clamp((int)align, 1, 8);
+                if (IL2CPP.il2cpp_class_has_references(fieldInfoClass)) a = 8; // structs holding refs must be pointer-aligned
+                fieldOffset = AlignUp(fieldOffset, a);
+                fieldInfo.Offset = fieldOffset;
                 fieldOffset += fieldSize;
             }
             else
             {
-                fieldOffset += sizeof(Il2CppObject*);
+                fieldSize = sizeof(IntPtr);
+                fieldOffset = AlignUp(fieldOffset, sizeof(IntPtr));
+                fieldInfo.Offset = fieldOffset;
+                fieldOffset += sizeof(IntPtr);
             }
+
+            var legacySize = fieldIsValueType ? fieldSize : sizeof(IntPtr);
+            var needsPtrAlign = !fieldIsValueType || IL2CPP.il2cpp_class_has_references(fieldInfoClass);
+            if (needsPtrAlign && legacyOffset % 8 != 0) legacyBad = true;
+            legacyOffset += legacySize;
         }
+
+        if (legacyOffset % 8 != 0) legacyBad = true;
+        if (legacyBad)
+            Logger.Instance.LogWarning("[layout-audit] {Type} would have had a misaligned layout under the old code", type.FullName);
 
         classPointer.Fields = il2cppFields;
 
+        fieldOffset = AlignUp(fieldOffset, sizeof(IntPtr));
         classPointer.InstanceSize = (uint)(fieldOffset + sizeof(InjectedClassData));
         classPointer.ActualSize = classPointer.InstanceSize;
 
