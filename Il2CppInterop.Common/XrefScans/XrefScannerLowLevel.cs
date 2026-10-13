@@ -26,4 +26,40 @@ public static class XrefScannerLowLevel
             }
         }
     }
+
+    public static IEnumerable<IntPtr> MethodCalls(IntPtr codeStart, bool ignoreRetn = false, int instructions = 250)
+    {
+        var decoder = XrefScanner.DecoderForAddress(codeStart, instructions * 4);
+
+        foreach (var instruction in decoder)
+        {
+            if (instruction.Mnemonic == Arm64Mnemonic.RET && !ignoreRetn)
+                yield break;
+
+            if (instruction is
+                {
+                    // only check BL/BLR
+                    Mnemonic: Arm64Mnemonic.BL or Arm64Mnemonic.BLR,
+                    MnemonicConditionCode: Arm64ConditionCode.NONE,
+                    FinalOpConditionCode: Arm64ConditionCode.NONE
+                })
+            {
+                var target = XrefScanUtilFinder.ExtractTargetAddress(instruction);
+                yield return (IntPtr)target;
+            }
+        }
+    }
+
+    public static IntPtr FindReturn(IntPtr codeStart, int instructions = 250)
+    {
+        var decoder = XrefScanner.DecoderForAddress(codeStart, instructions * 4);
+
+        foreach (var instruction in decoder)
+        {
+            if (instruction.Mnemonic == Arm64Mnemonic.RET)
+                return (IntPtr)instruction.Address;
+        }
+
+        return IntPtr.Zero;
+    }
 }
