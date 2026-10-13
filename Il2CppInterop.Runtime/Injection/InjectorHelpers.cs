@@ -112,7 +112,8 @@ namespace Il2CppInterop.Runtime.Injection
 
         internal static bool TryGetIl2CppExport(string name, out IntPtr address)
         {
-            return NativeLibrary.TryGetExport(Il2CppHandle, name, out address);
+            address = IL2CPP.Resolve(name);
+            return address != IntPtr.Zero;
         }
 
         internal static IntPtr GetIl2CppMethodPointer(MethodBase proxyMethod)

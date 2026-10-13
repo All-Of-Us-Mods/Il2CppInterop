@@ -26,7 +26,7 @@ public static unsafe class IL2CPP
 
     private static readonly nint s_nativeHandle;
 
-    private static nint Resolve(string originalName)
+    public static nint Resolve(string originalName)
     {
         string mapped = FusionInterop.GetIl2CppApi(originalName);
         if (!NativeLibrary.TryGetExport(s_nativeHandle, mapped, out var addr))
